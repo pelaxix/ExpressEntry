@@ -15,3 +15,5 @@
 - Public IRCC X HTML and YouTube Atom feed were retrieved; parsers extracted 5 official X posts and 15 videos. Social tests cover author/channel verification, long-form post text, deduplication, JSON-only parsing, request coalescing, persistence and independent source failures.
 
 - Instagram public profile embed returned six official posts. Tests verify nested JSON parsing, account ownership, deduplication and login-only response rejection. Facebook profile and Page Plugin returned no importable dated post data during the check.
+
+- Email compatibility pass replaces the table-wrapping header anchor with three linked header cells, adds explicit legacy table spacing/background/alignment attributes, inline font fallbacks, Outlook 96-DPI settings and a centered VML button with a standard HTML fallback. Automated markup checks pass; the external compatibility percentage and real Outlook rendering have not been retested.

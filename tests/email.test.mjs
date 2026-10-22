@@ -30,6 +30,15 @@ test("real HTML and plain-text draw alerts contain matching official facts and u
   assert.ok(mail.htmlContent.includes("?unsubscribe=" + "a".repeat(64)));
   assert.ok(mail.textContent.includes("?unsubscribe=" + "a".repeat(64)));
   assert.ok(Buffer.byteLength(mail.htmlContent) < 30000);
+  assert.ok(!/<a[^>]*>\s*<table/i.test(mail.htmlContent));
+  assert.match(mail.htmlContent, /<v:roundrect/);
+  assert.match(mail.htmlContent, /<o:PixelsPerInch>96/);
+  for (const table of mail.htmlContent.matchAll(/<table\b[^>]*>/g)) {
+    assert.ok(table[0].includes('cellpadding="0"'));
+    assert.ok(table[0].includes('cellspacing="0"'));
+  }
+  assert.equal((mail.htmlContent.match(/href="https:\/\/ee.example.test\/"/g) || []).length, 3);
+
 });
 test("test emails use the same complete latest-round layout with an explicit test label", () => {
   const testMail = drawEmail({
