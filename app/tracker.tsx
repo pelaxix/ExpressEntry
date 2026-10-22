@@ -1,3 +1,4 @@
+import { Standing, PoolCompare, DrawCalendar } from "./insights";
 import Updates from "./updates";
 import Notifications, { Unsubscribe } from "./notifications";
 import Admin from "./admin";
@@ -93,6 +94,9 @@ const titles = {
   overview: "Draw overview",
   draws: "Draw history",
   pool: "CRS pool distribution",
+  standing: "Where do I stand?",
+  compare: "Compare pool snapshots",
+  calendar: "Draw calendar",
   updates: "IRCC updates",
   alerts: "Notifications",
   admin: "Administration",
@@ -102,6 +106,9 @@ const nav = [
   { id: "overview", label: "Overview", icon: LayoutDashboard },
   { id: "draws", label: "Draw history", icon: Table2 },
   { id: "pool", label: "Candidate pool", icon: ChartNoAxesCombined },
+  { id: "standing", label: "My CRS comparison", icon: Info },
+  { id: "compare", label: "Compare pools", icon: ChartNoAxesCombined },
+  { id: "calendar", label: "Draw calendar", icon: Table2 },
   { id: "updates", label: "IRCC updates", icon: ExternalLink },
   { id: "alerts", label: "Notifications", icon: Bell },
 ] as const;
@@ -855,13 +862,19 @@ export default function Dashboard() {
                     ? "Every published round. The detail behind every cutoff."
                     : view === "pool"
                       ? "Candidates in the pool, by published CRS score band."
-                      : view === "updates"
-                        ? "Announcements and publications, straight from IRCC."
-                        : view === "admin"
-                          ? "Manage subscribers and email delivery."
-                          : view === "unsubscribe"
-                            ? "Control the emails you receive."
-                            : "Get new draw results by email. No account needed."}
+                      : view === "standing"
+                        ? "Your score alongside published cutoffs and pool bands."
+                        : view === "compare"
+                          ? "See how the candidate pool changes between snapshots."
+                          : view === "calendar"
+                            ? "Published rounds by date and category."
+                            : view === "updates"
+                              ? "Announcements and publications, straight from IRCC."
+                              : view === "admin"
+                                ? "Manage subscribers and email delivery."
+                                : view === "unsubscribe"
+                                  ? "Control the emails you receive."
+                                  : "Get new draw results by email. No account needed."}
               </p>
             </div>
             <div className="header-actions">
@@ -1266,6 +1279,17 @@ export default function Dashboard() {
                   checkedAt={data.monitor?.checkedAt}
                   interval={data.monitoring?.intervalMinutes || 5}
                 />
+              )}
+              {view === "standing" && (
+                <Standing
+                  draws={draws}
+                  snapshots={snapshots}
+                  categories={categories}
+                />
+              )}
+              {view === "compare" && <PoolCompare snapshots={snapshots} />}
+              {view === "calendar" && (
+                <DrawCalendar draws={draws} categories={categories} />
               )}
               {view === "updates" && <Updates />}
               {view === "admin" && <Admin />}
