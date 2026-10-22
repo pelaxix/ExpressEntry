@@ -57,7 +57,7 @@ test("draw-supplied text is escaped and unsafe URLs do not become email links", 
   });
   assert.ok(!mail.htmlContent.includes("<script>"));
   assert.ok(!mail.htmlContent.includes("<img"));
-  assert.ok(mail.htmlContent.includes("&lt;script&gt;"));
+  assert.ok(mail.htmlContent.includes("&lt;img"));
   assert.ok(!mail.htmlContent.includes('href="javascript:'));
 });
 test("site preview uses the same HTML layout without a working unsubscribe token", () => {
