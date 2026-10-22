@@ -105,8 +105,10 @@ Design follows TasteSkill's **Framed sheet**, seed `2070027195`: IBM Plex Sans, 
 
 ## Official IRCC updates
 
-The IRCC updates section reads the public Canada.ca newsroom API server-side, caches results for 15 minutes, and stores the latest successful feed in `DATA_DIR/ircc-news.json`. It supports text search and an Express Entry keyword filter over the latest 100 newsroom entries. Official notices, program guidance, publications and social channels are linked separately; social posts are not aggregated. News does not send notification emails. Failed refreshes retain the saved feed and show a warning.
+The IRCC updates section reads the public Canada.ca newsroom API server-side, caches results for 15 minutes, and stores the latest successful feed in `DATA_DIR/ircc-news.json`. It supports text search and an Express Entry keyword filter over the latest 100 newsroom entries. Official notices, program guidance and publications are linked separately. Public X posts and YouTube uploads are aggregated alongside newsroom items, with a source filter. News does not send notification emails. Failed refreshes retain the saved feed and show a warning.
 
 ## Personal comparisons and calendar
 
 My CRS comparison stores score and self-selected eligible categories only in browser local storage. It compares the latest 20 matching rounds and distinguishes cutoff ties. Candidates above a score are shown as bounds from non-overlapping published pool bands, not as an exact category rank. Compare pools shows arbitrary snapshot pairs with net change per detailed band and total. Draw calendar groups published rounds by month, filters categories, and shows elapsed days since the last published draw; it does not predict future dates.
+
+Social feeds cache for 15 minutes in `DATA_DIR/ircc-social.json`, with independent per-source fetch status and last-success times. X parses JSON already present in the public @CitImmCanada profile HTML and verifies the official account ID. It is best-effort and may break when X changes its public page. YouTube uses the official channel’s public Atom feed. Neither feed is a complete social archive. Facebook, Instagram and LinkedIn remain links only. No API keys or logins are used, and no social emails are sent.
