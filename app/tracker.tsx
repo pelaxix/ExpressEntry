@@ -1,3 +1,4 @@
+import Updates from "./updates";
 import Notifications, { Unsubscribe } from "./notifications";
 import Admin from "./admin";
 ("use client");
@@ -92,6 +93,7 @@ const titles = {
   overview: "Draw overview",
   draws: "Draw history",
   pool: "CRS pool distribution",
+  updates: "IRCC updates",
   alerts: "Notifications",
   admin: "Administration",
   unsubscribe: "Unsubscribe",
@@ -100,6 +102,7 @@ const nav = [
   { id: "overview", label: "Overview", icon: LayoutDashboard },
   { id: "draws", label: "Draw history", icon: Table2 },
   { id: "pool", label: "Candidate pool", icon: ChartNoAxesCombined },
+  { id: "updates", label: "IRCC updates", icon: ExternalLink },
   { id: "alerts", label: "Notifications", icon: Bell },
 ] as const;
 function Panel({
@@ -852,11 +855,13 @@ export default function Dashboard() {
                     ? "Every published round. The detail behind every cutoff."
                     : view === "pool"
                       ? "Candidates in the pool, by published CRS score band."
-                      : view === "admin"
-                        ? "Manage subscribers and email delivery."
-                        : view === "unsubscribe"
-                          ? "Control the emails you receive."
-                          : "Get new draw results by email. No account needed."}
+                      : view === "updates"
+                        ? "Announcements and publications, straight from IRCC."
+                        : view === "admin"
+                          ? "Manage subscribers and email delivery."
+                          : view === "unsubscribe"
+                            ? "Control the emails you receive."
+                            : "Get new draw results by email. No account needed."}
               </p>
             </div>
             <div className="header-actions">
@@ -1262,6 +1267,7 @@ export default function Dashboard() {
                   interval={data.monitoring?.intervalMinutes || 5}
                 />
               )}
+              {view === "updates" && <Updates />}
               {view === "admin" && <Admin />}
               {view === "unsubscribe" && (
                 <Unsubscribe token={unsubscribeToken || ""} />

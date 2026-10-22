@@ -102,3 +102,7 @@ Development starts the API automatically and keeps data under ignored `.local-da
 Tests use a temporary database and mocked IRCC/Brevo responses. They verify pool arithmetic, unique draw ordering, no historical alert backlog, matching-category delivery, concurrent check deduplication, retry handling and preservation of last-good data. They do not send real email.
 
 Design follows TasteSkill's **Framed sheet**, seed `2070027195`: IBM Plex Sans, neutral framing, data-led teal and restrained chart chrome. No generated or fabricated chart data.
+
+## Official IRCC updates
+
+The IRCC updates section reads the public Canada.ca newsroom API server-side, caches results for 15 minutes, and stores the latest successful feed in `DATA_DIR/ircc-news.json`. It supports text search and an Express Entry keyword filter over the latest 100 newsroom entries. Official notices, program guidance, publications and social channels are linked separately; social posts are not aggregated. News does not send notification emails. Failed refreshes retain the saved feed and show a warning.

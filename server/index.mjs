@@ -1,3 +1,4 @@
+import { createNewsFeed } from "./news.mjs";
 import { createServer } from "node:http";
 import { createReadStream, existsSync, statSync, mkdirSync } from "node:fs";
 import { resolve, join, extname, relative, isAbsolute } from "node:path";
@@ -116,6 +117,7 @@ function safeEqual(a, b) {
     createHash("sha256").update(b).digest(),
   );
 }
+const newsFeed = createNewsFeed(dataDir);
 const server = createServer(async (req, res) => {
   res.setHeader("X-Content-Type-Options", "nosniff");
   res.setHeader("Referrer-Policy", "same-origin");
@@ -124,6 +126,8 @@ const server = createServer(async (req, res) => {
     if (url.pathname.startsWith("/api/")) {
       if (req.method === "POST" && !allowedOrigin(req))
         return json(res, 403, { error: "Invalid request origin." });
+      if (url.pathname === "/api/news" && req.method === "GET")
+        return json(res, 200, await newsFeed());
       if (url.pathname === "/api/data" && req.method === "GET")
         return json(res, 200, tracker.dataset());
       if (url.pathname === "/api/auth" && req.method === "GET")
