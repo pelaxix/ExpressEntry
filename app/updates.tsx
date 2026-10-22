@@ -116,8 +116,8 @@ export default function Updates() {
           <div>
             <h2>Official IRCC updates</h2>
             <p>
-              Publications, X posts and YouTube videos, newest first. Open an
-              item to view the original.
+              Publications, X and Instagram posts, and YouTube videos, newest
+              first. Open an item to view the original.
             </p>
           </div>
           <button
@@ -143,6 +143,7 @@ export default function Updates() {
               "IRCC · Canada.ca",
               "X · @CitImmCanada",
               "YouTube · IRCC",
+              "Instagram · @citimmcanada",
             ].map((s) => (
               <option key={s}>{s}</option>
             ))}
@@ -237,11 +238,11 @@ export default function Updates() {
           </a>
         ))}
         <p className="source-note">
-          X uses posts available on IRCC’s public profile; YouTube uses its
-          public video feed. These may contain a limited selection, not a
-          complete archive. Facebook, Instagram and LinkedIn remain available
-          through the official channels link. Updates do not trigger draw alert
-          emails.
+          X and Instagram use posts available in IRCC’s public profile pages;
+          YouTube uses its public video feed. These may contain a limited
+          selection, not a complete archive. Facebook and LinkedIn remain
+          available through the official channels link. Updates do not trigger
+          draw alert emails.
         </p>
       </aside>
     </div>

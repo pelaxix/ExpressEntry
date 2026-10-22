@@ -3,7 +3,12 @@ import assert from "node:assert/strict";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { parseX, parseYouTube, createSocialFeed } from "../server/social.mjs";
+import {
+  parseInstagram,
+  parseX,
+  parseYouTube,
+  createSocialFeed,
+} from "../server/social.mjs";
 const tweet = {
   __typename: "Tweet",
   rest_id: "123456",
@@ -44,10 +49,10 @@ test("social fetch coalesces and caches; outage preserves each source independen
     return new Response(url.includes("x.com") ? html(tweet) : xml);
   });
   const [result] = await Promise.all([feed(), feed()]);
-  assert.equal(calls, 2);
+  assert.equal(calls, 3);
   assert.equal(result.items.length, 2);
   await feed();
-  assert.equal(calls, 2);
+  assert.equal(calls, 3);
   const partial = createSocialFeed(dir, async (url) => {
     if (url.includes("x.com")) throw Error();
     return new Response(xml);
@@ -57,4 +62,30 @@ test("social fetch coalesces and caches; outage preserves each source independen
   assert.equal(fallback.sources[0].ok, false);
   assert.equal(fallback.sources[1].ok, true);
   assert.ok(fallback.sources[0].updatedAt);
+});
+
+const igPost = {
+  shortcode: "Abc_123",
+  taken_at_timestamp: 1792515644,
+  owner: { id: "2179206737", username: "citimmcanada" },
+  edge_media_to_caption: {
+    edges: [{ node: { text: 'Official caption {test} "quoted"' } }],
+  },
+};
+const igHtml = (p) =>
+  `<script>s.handle(${JSON.stringify({ data: JSON.stringify({ posts: [p, p] }) })});</script>`;
+test("Instagram parses nested public embed JSON, verifies author and deduplicates", () => {
+  const posts = parseInstagram(igHtml(igPost));
+  assert.equal(posts.length, 1);
+  assert.equal(
+    posts[0].summary,
+    igPost.edge_media_to_caption.edges[0].node.text,
+  );
+  assert.equal(posts[0].url, "https://www.instagram.com/p/Abc_123/");
+  assert.throws(() =>
+    parseInstagram(
+      igHtml({ ...igPost, owner: { id: "other", username: "citimmcanada" } }),
+    ),
+  );
+  assert.throws(() => parseInstagram("<html>Login</html>"));
 });

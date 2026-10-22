@@ -7,7 +7,83 @@ export const SOCIAL_SOURCES = [
     name: "YouTube · IRCC",
     url: "https://www.youtube.com/feeds/videos.xml?channel_id=UC50bi5fNoYQk11lWhfi3l4w",
   },
+  {
+    id: "instagram",
+    name: "Instagram · @citimmcanada",
+    url: "https://www.instagram.com/citimmcanada/embed/",
+  },
 ];
+export function parseInstagram(html) {
+  const items = new Map();
+  function walk(v, depth = 0) {
+    if (depth > 70 || v == null) return;
+    if (typeof v === "string" && /^[{[]/.test(v)) {
+      try {
+        walk(JSON.parse(v), depth + 1);
+      } catch {}
+      return;
+    }
+    if (typeof v !== "object") return;
+    if (v.shortcode && v.taken_at_timestamp) {
+      const owner = v.owner;
+      const text = v.edge_media_to_caption?.edges?.[0]?.node?.text;
+      const date = new Date(v.taken_at_timestamp * 1000);
+      if (
+        owner?.id === "2179206737" &&
+        owner.username === "citimmcanada" &&
+        /^[A-Za-z0-9_-]+$/.test(v.shortcode) &&
+        Number.isFinite(date.getTime())
+      ) {
+        const caption =
+          typeof text === "string"
+            ? text
+            : "View this official IRCC post on Instagram.";
+        items.set(v.shortcode, {
+          title: caption.split("\n")[0].slice(0, 160),
+          summary: caption,
+          date: date.toISOString(),
+          url: `https://www.instagram.com/p/${v.shortcode}/`,
+          source: "Instagram · @citimmcanada",
+        });
+      }
+      return;
+    }
+    for (const child of Object.values(v)) walk(child, depth + 1);
+  }
+  // Read a balanced JSON object from ServerJS; no page JavaScript is executed.
+  for (const script of html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)) {
+    try {
+      walk(JSON.parse(script[1]));
+    } catch {}
+    for (const match of script[1].matchAll(/\.handle\((\{)/g)) {
+      const start = match.index + match[0].length - 1;
+      let depth = 0,
+        quoted = false,
+        escaped = false;
+      for (let i = start; i < script[1].length; i++) {
+        const ch = script[1][i];
+        if (quoted) {
+          if (escaped) escaped = false;
+          else if (ch === "\\") escaped = true;
+          else if (ch === '"') quoted = false;
+          continue;
+        }
+        if (ch === '"') quoted = true;
+        else if (ch === "{") depth++;
+        else if (ch === "}" && --depth === 0) {
+          try {
+            walk(JSON.parse(script[1].slice(start, i + 1)));
+          } catch {}
+          break;
+        }
+      }
+    }
+  }
+  if (!items.size) throw Error("No readable official Instagram posts");
+  return [...items.values()]
+    .sort((a, b) => Date.parse(b.date) - Date.parse(a.date))
+    .slice(0, 30);
+}
 export function parseX(html) {
   const items = new Map();
   function walk(v, depth = 0) {
@@ -131,7 +207,12 @@ export function createSocialFeed(dataDir, fetcher = fetch) {
             });
             if (!response.ok) throw Error();
             const body = await response.text();
-            const items = source.id === "x" ? parseX(body) : parseYouTube(body);
+            const items =
+              source.id === "x"
+                ? parseX(body)
+                : source.id === "instagram"
+                  ? parseInstagram(body)
+                  : parseYouTube(body);
             return {
               items,
               status: {
