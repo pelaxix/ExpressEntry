@@ -267,7 +267,19 @@ const server = createServer(async (req, res) => {
         const b = await body(req);
         const sub = tracker.subscriber(b.id);
         if (!sub) return json(res, 404, { error: "Subscriber not found." });
-        await tracker.sendEmail(sub, tracker.dataset().draws[0], true);
+        if (sub.status !== "active")
+          return json(res, 409, {
+            error: "Test emails can only be sent to active subscribers.",
+          });
+        const sent = await tracker.sendEmail(
+          sub,
+          tracker.dataset().draws[0],
+          true,
+        );
+        if (!sent)
+          return json(res, 409, {
+            error: "This subscriber is no longer active.",
+          });
         return json(res, 200, { ok: true });
       }
       if (url.pathname === "/api/alert-history" && req.method === "GET")
@@ -281,6 +293,14 @@ const server = createServer(async (req, res) => {
           !["pause", "resume", "remove"].includes(b.action)
         )
           return json(res, 400, { error: "Invalid subscriber action." });
+        if (
+          b.action === "resume" &&
+          tracker.subscriber(b.id)?.status === "unsubscribed"
+        )
+          return json(res, 409, {
+            error:
+              "An unsubscribed address cannot be resumed by an administrator.",
+          });
         tracker.manageSubscriber(b.id, b.action);
         return json(res, 200, { ok: true });
       }

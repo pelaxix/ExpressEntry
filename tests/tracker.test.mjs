@@ -199,7 +199,7 @@ test("paused, removed and unsubscribed addresses do not get new draw alerts", as
   tracker.subscribe("active@example.test");
   await tracker.sync();
   assert.equal(emails, 1);
-  assert.equal(tracker.subscribers().length, 3);
+  assert.equal(tracker.subscribers().length, 2);
 });
 test("subscriber category selections control delivery and signup never sends old draws", async (t) => {
   let emails = 0,
@@ -244,4 +244,64 @@ test("old single recipient migrates once without replacing the database", async 
   assert.deepEqual(tracker.subscribers()[0].categories, ["CEC"]);
   createTracker(store, cfg);
   assert.equal(tracker.subscribers().length, 1);
+});
+
+test("unsubscribe deletes subscriber and queued history, is repeatable, and blocks stale test sends", async (t) => {
+  let sends = 0;
+  const { store, tracker } = fixture(t, async () => {
+    sends++;
+    return Response.json({});
+  });
+  const id = tracker.subscribe("gone@example.test");
+  const stale = tracker.subscriber(id);
+  store.db
+    .prepare(
+      "INSERT INTO deliveries(id,draw_id,subscriber_id,status,created_at) VALUES('queued',451,?,'pending','2026-10-22')",
+    )
+    .run(id);
+  assert.equal(tracker.unsubscribe(stale.unsubscribe_token), true);
+  assert.equal(tracker.subscriber(id), undefined);
+  assert.equal(tracker.history().length, 0);
+  assert.equal(tracker.unsubscribe(stale.unsubscribe_token), false);
+  assert.equal(await tracker.sendEmail(stale, normalized[0], true), false);
+  assert.equal(sends, 0);
+  const fresh = tracker.subscribe("gone@example.test");
+  assert.notEqual(fresh, id);
+  assert.equal(tracker.history().length, 0);
+});
+test("unsubscribe during a batch prevents sending a later queued recipient", async (t) => {
+  const mails = [];
+  let second;
+  const { tracker } = fixture(t, async (url, opts) => {
+    if (url.includes("brevo")) {
+      mails.push(JSON.parse(opts.body));
+      if (mails.length === 1) tracker.unsubscribe(second.unsubscribe_token);
+      return Response.json({});
+    }
+    return Response.json({ rounds: [nextRaw(), ...source] });
+  });
+  tracker.subscribe("first@example.test");
+  const id = tracker.subscribe("second@example.test");
+  second = tracker.subscriber(id);
+  await tracker.sync();
+  assert.equal(mails.length, 1);
+  assert.equal(mails[0].to[0].email, "first@example.test");
+  assert.equal(tracker.subscriber(id), undefined);
+});
+test("upgrade deletes existing unsubscribed rows and their pending deliveries", async (t) => {
+  const { store, tracker } = fixture(t, async () =>
+    Response.json({ rounds: source }),
+  );
+  const id = tracker.subscribe("old-unsub@example.test");
+  store.db
+    .prepare("UPDATE subscribers SET status='unsubscribed' WHERE id=?")
+    .run(id);
+  store.db
+    .prepare(
+      "INSERT INTO deliveries(id,draw_id,subscriber_id,status,created_at) VALUES('old-queued',451,?,'pending','2026-10-22')",
+    )
+    .run(id);
+  createTracker(store, { dataDir: "unused", pollMinutes: 5 });
+  assert.equal(tracker.subscriber(id), undefined);
+  assert.equal(tracker.history().length, 0);
 });

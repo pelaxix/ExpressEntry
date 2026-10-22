@@ -262,7 +262,7 @@ export default function Admin() {
                       </button>
                       <button
                         className="text-button"
-                        disabled={busy || !emailReady}
+                        disabled={busy || !emailReady || s.status !== "active"}
                         onClick={() => test(s.id)}
                       >
                         Send test

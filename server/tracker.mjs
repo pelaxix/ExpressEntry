@@ -60,6 +60,8 @@ export function createTracker(store, config, { fetchImpl = fetch } = {}) {
     store.write("settings", { enabled: true, categories: [] });
     store.write("subscriberMigration", true);
   }
+  // Clean up records left by the previous status-based unsubscribe behavior.
+  store.db.prepare("DELETE FROM subscribers WHERE status='unsubscribed'").run();
   const providers = () => ({
     email: !!(config.brevoApiKey && config.fromEmail),
   });
@@ -99,6 +101,15 @@ export function createTracker(store, config, { fetchImpl = fetch } = {}) {
     );
   }
   async function sendEmail(s, draw, test = false) {
+    // Read current consent immediately before dispatch, rather than trusting a queued batch.
+    const subscriberId = s.subscriber_id || s.id;
+    if (subscriberId) {
+      const current = store.db
+        .prepare("SELECT * FROM subscribers WHERE id=?")
+        .get(subscriberId);
+      if (!current || current.status !== "active") return false;
+      s = current;
+    }
     if (!providers().email)
       throw new Error(
         "Email delivery needs a Brevo API key and verified sender in the server configuration.",
@@ -133,6 +144,7 @@ export function createTracker(store, config, { fetchImpl = fetch } = {}) {
           res.status +
           "). Check the API key and verified sender.",
       );
+    return true;
   }
   function archive(draws, now) {
     store.db.exec("BEGIN IMMEDIATE");
@@ -250,7 +262,13 @@ export function createTracker(store, config, { fetchImpl = fetch } = {}) {
           .run(a.id);
         if (!claimed.changes) continue;
         try {
-          await sendEmail(a, d);
+          const sent = await sendEmail(a, d);
+          if (!sent) {
+            store.db
+              .prepare("UPDATE deliveries SET status='skipped' WHERE id=?")
+              .run(a.id);
+            continue;
+          }
           store.db
             .prepare(
               "UPDATE deliveries SET status='sent',sent_at=?,error=NULL WHERE id=?",
@@ -349,12 +367,10 @@ export function createTracker(store, config, { fetchImpl = fetch } = {}) {
           .run(id);
     },
     unsubscribe(token) {
-      const r = store.db
-        .prepare(
-          "UPDATE subscribers SET status='unsubscribed',updated_at=? WHERE unsubscribe_token=?",
-        )
-        .run(new Date().toISOString(), token);
-      return !!r.changes;
+      // Foreign-key cascade removes queued deliveries and recipient-specific history too.
+      return !!store.db
+        .prepare("DELETE FROM subscribers WHERE unsubscribe_token=?")
+        .run(token).changes;
     },
     saveSettings(s) {
       if (s.email) subscribe(s.email, s.categories || []);
