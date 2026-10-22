@@ -40,6 +40,7 @@ import {
   Scatter,
 } from "recharts";
 import {
+  crsDomain,
   BANDS,
   BROAD,
   LEAVES,
@@ -289,6 +290,7 @@ function Trend({ draws, score }: { draws: Draw[]; score: number | null }) {
     .map((d) => ({ ...d, t: Date.parse(d.date + "T12:00:00Z") }));
   const categories = new Set(draws.map((d) => d.category));
   const mixed = categories.size > 1;
+  const yDomain = crsDomain(draws.map((d) => d.crs), score);
   const shared = (
     <>
       <CartesianGrid
@@ -309,7 +311,8 @@ function Trend({ draws, score }: { draws: Draw[]; score: number | null }) {
       />
       <YAxis
         dataKey="crs"
-        domain={[0, 1200]}
+        domain={yDomain}
+        allowDecimals={false}
         tickCount={5}
         tick={{ fill: "var(--muted)", fontSize: 12 }}
         axisLine={false}
