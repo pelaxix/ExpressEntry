@@ -271,22 +271,27 @@ test("unsubscribe deletes subscriber and queued history, is repeatable, and bloc
 });
 test("unsubscribe during a batch prevents sending a later queued recipient", async (t) => {
   const mails = [];
-  let second;
+  const subscribers = new Map();
+  let removedId;
   const { tracker } = fixture(t, async (url, opts) => {
     if (url.includes("brevo")) {
-      mails.push(JSON.parse(opts.body));
-      if (mails.length === 1) tracker.unsubscribe(second.unsubscribe_token);
+      const mail = JSON.parse(opts.body);
+      mails.push(mail);
+      if (mails.length === 1) {
+        const other = [...subscribers.entries()].find(([email]) => email !== mail.to[0].email);
+        removedId = other[1];
+        tracker.unsubscribe(tracker.subscriber(removedId).unsubscribe_token);
+      }
       return Response.json({});
     }
     return Response.json({ rounds: [nextRaw(), ...source] });
   });
-  tracker.subscribe("first@example.test");
-  const id = tracker.subscribe("second@example.test");
-  second = tracker.subscriber(id);
+  for (const email of ["first@example.test", "second@example.test"]) {
+    subscribers.set(email, tracker.subscribe(email));
+  }
   await tracker.sync();
   assert.equal(mails.length, 1);
-  assert.equal(mails[0].to[0].email, "first@example.test");
-  assert.equal(tracker.subscriber(id), undefined);
+  assert.equal(tracker.subscriber(removedId), undefined);
 });
 test("upgrade deletes existing unsubscribed rows and their pending deliveries", async (t) => {
   const { store, tracker } = fixture(t, async () =>
@@ -303,5 +308,23 @@ test("upgrade deletes existing unsubscribed rows and their pending deliveries", 
     .run(id);
   createTracker(store, { dataDir: "unused", pollMinutes: 5 });
   assert.equal(tracker.subscriber(id), undefined);
+  assert.equal(tracker.history().length, 0);
+});
+
+test("Send test delivers actual latest-round details as HTML and text", async (t) => {
+  let mail;
+  const { tracker } = fixture(t, async (url, opts) => {
+    mail = JSON.parse(opts.body);
+    return Response.json({ messageId: "mock" });
+  });
+  const id = tracker.subscribe("preview@example.test");
+  const latest = tracker.dataset().draws[0];
+  await tracker.sendEmail(tracker.subscriber(id), latest, true);
+  assert.match(mail.subject, /^\[TEST\]/);
+  assert.ok(mail.subject.includes("#" + latest.id));
+  assert.ok(mail.htmlContent.includes("View official draw"));
+  assert.ok(mail.textContent.includes(latest.name));
+  assert.ok(mail.textContent.includes("CRS cutoff: " + latest.crs));
+  assert.ok(mail.htmlContent.includes("?unsubscribe="));
   assert.equal(tracker.history().length, 0);
 });

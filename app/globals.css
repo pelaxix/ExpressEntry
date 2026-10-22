@@ -1488,3 +1488,4 @@ dialog > a {
   color: var(--muted);
   margin-top: 10px;
 }
+.email-preview{margin-top:24px}.email-preview .preview-label{font-size:12px;color:var(--muted);margin-bottom:10px}.email-preview iframe{display:block;width:100%;height:780px;border:1px solid var(--border);border-radius:8px;background:#f1f5f6}.settings-layout:has(.email-preview){align-items:start;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr)}@media(max-width:700px){.email-preview iframe{height:800px}.settings-layout:has(.email-preview){display:flex;flex-direction:column}.settings-layout:has(.email-preview)>.settings-panel{order:-1;width:100%;margin-top:0}.settings-layout:has(.email-preview)>.settings-intro{width:100%;margin-top:24px}}

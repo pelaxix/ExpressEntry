@@ -1,3 +1,4 @@
+import { drawEmail } from "../lib/email.mjs";
 import { randomBytes } from "node:crypto";
 import { gunzipSync } from "node:zlib";
 import { readFileSync } from "node:fs";
@@ -115,14 +116,12 @@ export function createTracker(store, config, { fetchImpl = fetch } = {}) {
         "Email delivery needs a Brevo API key and verified sender in the server configuration.",
       );
     if (!s.email) throw new Error("Save an email address first.");
-    const subject = test
-      ? "Express Entry · Test notification"
-      : `Express Entry #${draw.id}: ${draw.category} · CRS ${draw.crs}`;
-    let text = test
-      ? "Your Express Entry email notifications are connected. New draw alerts will be sent here when monitoring detects a matching round."
-      : `${draw.name}\n\nDraw #${draw.id}\nDate: ${draw.date}\nCRS cutoff: ${draw.crs}\nInvitations: ${draw.invitations.toLocaleString("en-CA")}\nTie-breaking rule: ${draw.tieBreak}\n\nOfficial instructions: ${draw.url}\nYour dashboard: ${config.publicUrl}\n\nThis alert reports public draw results. Program, category and tie-breaking requirements still apply.`;
-    if (s.unsubscribe_token)
-      text += `\n\nUnsubscribe: ${config.publicUrl}/?unsubscribe=${s.unsubscribe_token}`;
+    const content = drawEmail({
+      draw,
+      publicUrl: config.publicUrl,
+      unsubscribeToken: s.unsubscribe_token,
+      test,
+    });
     const res = await fetchImpl("https://api.brevo.com/v3/smtp/email", {
       method: "POST",
       headers: {
@@ -132,8 +131,7 @@ export function createTracker(store, config, { fetchImpl = fetch } = {}) {
       body: JSON.stringify({
         sender: { name: "Pelaxix Express Entry", email: config.fromEmail },
         to: [{ email: s.email }],
-        subject,
-        textContent: text,
+        ...content,
         tags: ["express-entry", test ? "test" : "draw-" + draw.id],
       }),
       signal: AbortSignal.timeout(20000),

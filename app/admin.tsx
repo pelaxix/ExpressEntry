@@ -120,7 +120,9 @@ export default function Admin() {
     setMessage("");
     try {
       await request("/api/test-alert", { id });
-      setMessage("Test email sent.");
+      setMessage(
+        "Latest-round preview sent. Check your inbox for the [TEST] email.",
+      );
     } catch (e) {
       setMessage((e as Error).message);
     } finally {
@@ -265,7 +267,7 @@ export default function Admin() {
                         disabled={busy || !emailReady || s.status !== "active"}
                         onClick={() => test(s.id)}
                       >
-                        Send test
+                        Send latest-round test
                       </button>
                       <button
                         className="text-button error-text"

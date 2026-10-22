@@ -1,3 +1,4 @@
+import { drawEmail } from "../lib/email.mjs";
 import { useState } from "react";
 import { ArrowRight, Bell, Check } from "lucide-react";
 import type { Draw } from "../lib/ircc";
@@ -47,16 +48,24 @@ export default function Notifications({
           Get the category, CRS cutoff and invitation count by email. No account
           or password needed.
         </p>
-        <div className="notification-preview">
-          <span>Your next draw alert</span>
-          <strong>New Express Entry draw</strong>
-          <p>
-            {latest
-              ? `${latest.category} · CRS ${latest.crs} · ${latest.invitations.toLocaleString("en-CA")} invitations`
-              : "Category · CRS cutoff · Invitations"}
-          </p>
-          <small>Preview using the latest published round</small>
-        </div>
+        {latest && (
+          <div className="email-preview">
+            <p className="preview-label">
+              Actual email layout · Latest published round
+            </p>
+            <iframe
+              title="Preview of draw notification email"
+              sandbox="allow-popups allow-popups-to-escape-sandbox"
+              srcDoc={
+                drawEmail({
+                  draw: latest,
+                  publicUrl: window.location.origin,
+                  preview: true,
+                }).htmlContent
+              }
+            />
+          </div>
+        )}
         <p className="note">
           IRCC is checked every {interval} minutes.{" "}
           {checkedAt
