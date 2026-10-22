@@ -1,4 +1,6 @@
-"use client";
+import Notifications, { Unsubscribe } from "./notifications";
+import Admin from "./admin";
+("use client");
 import { useState, useEffect, useMemo, useRef } from "react";
 import {
   LayoutDashboard,
@@ -91,6 +93,8 @@ const titles = {
   draws: "Draw history",
   pool: "CRS pool distribution",
   alerts: "Notifications",
+  admin: "Administration",
+  unsubscribe: "Unsubscribe",
 };
 const nav = [
   { id: "overview", label: "Overview", icon: LayoutDashboard },
@@ -290,7 +294,10 @@ function Trend({ draws, score }: { draws: Draw[]; score: number | null }) {
     .map((d) => ({ ...d, t: Date.parse(d.date + "T12:00:00Z") }));
   const categories = new Set(draws.map((d) => d.category));
   const mixed = categories.size > 1;
-  const yDomain = crsDomain(draws.map((d) => d.crs), score);
+  const yDomain = crsDomain(
+    draws.map((d) => d.crs),
+    score,
+  );
   const shared = (
     <>
       <CartesianGrid
@@ -610,7 +617,11 @@ function PoolTable({
   );
 }
 export default function Dashboard() {
-  const [view, setView] = useState<keyof typeof titles>("overview"),
+  const [view, setView] = useState<keyof typeof titles>(
+      new URLSearchParams(window.location.search).has("unsubscribe")
+        ? "unsubscribe"
+        : "overview",
+    ),
     [data, setData] = useState<Data | null>(null),
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false),
@@ -624,27 +635,10 @@ export default function Dashboard() {
     [selected, setSelected] = useState<Draw | null>(null),
     [poolId, setPoolId] = useState(""),
     [scoreText, setScoreText] = useState(""),
-    [prefs, setPrefs] = useState<Prefs>({
-      enabled: false,
-      email: "",
-      categories: [],
-    }),
-    [emailReady, setEmailReady] = useState(false),
-    [message, setMessage] = useState(""),
-    [settingsReady, setSettingsReady] = useState(false),
-    [saving, setSaving] = useState(false),
-    [admin, setAdmin] = useState(false),
-    [password, setPassword] = useState(""),
-    [authConfigured, setAuthConfigured] = useState(true),
-    [history, setHistory] = useState<
-      {
-        draw_id: number;
-        status: string;
-        created_at: string;
-        sent_at?: string;
-        error?: string;
-      }[]
-    >([]);
+    [message, setMessage] = useState("");
+  const unsubscribeToken = new URLSearchParams(window.location.search).get(
+    "unsubscribe",
+  );
   const score =
     scoreText !== "" && Number(scoreText) >= 0 && Number(scoreText) <= 1200
       ? Number(scoreText)
@@ -659,9 +653,14 @@ export default function Dashboard() {
     setError("");
     try {
       const r = await fetch("/api/sync", { method: "POST" });
-      const j = (await r.json()) as { error?: string };
+      const j = (await r.json()) as { error?: string; cached?: boolean };
       await load();
       if (!r.ok) throw new Error(j.error || "IRCC refresh failed.");
+      setMessage(
+        j.cached
+          ? "IRCC was checked just now. These are the latest shared results."
+          : "IRCC checked. Shared results updated.",
+      );
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -670,14 +669,6 @@ export default function Dashboard() {
   }
   useEffect(() => {
     load().catch((e) => setError(e.message));
-    fetch("/api/auth")
-      .then((r) => r.json())
-      .then((j) => {
-        setAdmin(j.authenticated);
-        setAuthConfigured(j.configured);
-        if (j.authenticated) loadSettings();
-      })
-      .catch(() => {});
     const stored = localStorage.getItem("ee-theme");
     const d = stored
       ? stored === "dark"
@@ -686,7 +677,12 @@ export default function Dashboard() {
     const s = localStorage.getItem("ee-score");
     if (s) setScoreText(s);
     const timer = setInterval(() => load().catch(() => {}), 60000);
-    return () => clearInterval(timer);
+    const events = new EventSource("/api/events");
+    events.addEventListener("updated", () => load().catch(() => {}));
+    return () => {
+      clearInterval(timer);
+      events.close();
+    };
   }, []);
   useEffect(() => {
     document.documentElement.dataset.theme = dark ? "dark" : "light";
@@ -772,71 +768,6 @@ export default function Dashboard() {
     a.click();
     URL.revokeObjectURL(u);
   }
-  async function loadSettings() {
-    try {
-      const r = await fetch("/api/settings");
-      if (!r.ok) return;
-      const j = await r.json();
-      setPrefs(j.settings);
-      setEmailReady(j.providers.email);
-      setSettingsReady(true);
-      const h = await fetch("/api/alert-history");
-      if (h.ok) setHistory((await h.json()).alerts);
-    } catch {}
-  }
-  async function login() {
-    setSaving(true);
-    setMessage("");
-    try {
-      const r = await fetch("/api/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password }),
-      });
-      const j = await r.json();
-      if (!r.ok) throw new Error(j.error);
-      setAdmin(true);
-      setPassword("");
-      await loadSettings();
-    } catch (e) {
-      setMessage((e as Error).message);
-    } finally {
-      setSaving(false);
-    }
-  }
-  async function save() {
-    setSaving(true);
-    setMessage("");
-    try {
-      const r = await fetch("/api/settings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(prefs),
-      });
-      const j = (await r.json()) as { error?: string };
-      if (!r.ok) throw new Error(j.error);
-      setMessage("Alert preferences saved.");
-      await loadSettings();
-    } catch (e) {
-      setMessage((e as Error).message);
-    } finally {
-      setSaving(false);
-    }
-  }
-  async function test() {
-    setSaving(true);
-    setMessage("");
-    try {
-      const r = await fetch("/api/test-alert", { method: "POST" });
-      const j = (await r.json()) as { error?: string };
-      if (!r.ok) throw new Error(j.error);
-      setMessage("Test notification sent.");
-    } catch (e) {
-      setMessage((e as Error).message);
-    } finally {
-      setSaving(false);
-    }
-  }
   return (
     <div className="app-shell">
       <aside className={menu ? "sidebar open" : "sidebar"}>
@@ -848,12 +779,6 @@ export default function Dashboard() {
             Express Entry<small>by Pelaxix</small>
           </div>
         </a>
-        <div className="workspace">
-          <span className="canada-mark">CA</span>
-          <span>
-            Canada immigration<small>Federal Express Entry</small>
-          </span>
-        </div>
         <nav aria-label="Main navigation">
           {nav.map(({ id, label, icon: Icon }) => (
             <button
@@ -911,17 +836,6 @@ export default function Dashboard() {
             >
               {menu ? <X size={19} /> : <Menu size={19} />}
             </button>
-            <span>Express Entry</span>
-            <span className="slash">/</span>
-            <strong>
-              {view === "pool"
-                ? "Candidate pool"
-                : view === "draws"
-                  ? "Draw history"
-                  : view === "alerts"
-                    ? "Notifications"
-                    : "Overview"}
-            </strong>
           </div>
           <a href={OFFICIAL} target="_blank" rel="noreferrer">
             IRCC source <ExternalLink size={13} />
@@ -938,7 +852,11 @@ export default function Dashboard() {
                     ? "Every published round. The detail behind every cutoff."
                     : view === "pool"
                       ? "Candidates in the pool, by published CRS score band."
-                      : "Choose which draws reach you, and where."}
+                      : view === "admin"
+                        ? "Manage subscribers and email delivery."
+                        : view === "unsubscribe"
+                          ? "Control the emails you receive."
+                          : "Get new draw results by email. No account needed."}
               </p>
             </div>
             <div className="header-actions">
@@ -950,12 +868,17 @@ export default function Dashboard() {
                 <RefreshCw size={14} className={busy ? "spinning" : ""} />
                 {busy ? "Checking IRCC…" : "Check now"}
               </button>
-              {view !== "alerts" && (
-                <button onClick={() => go("alerts")} className="button primary">
-                  <Bell size={14} />
-                  Set up alerts
-                </button>
-              )}
+              {view !== "alerts" &&
+                view !== "admin" &&
+                view !== "unsubscribe" && (
+                  <button
+                    onClick={() => go("alerts")}
+                    className="button primary"
+                  >
+                    <Bell size={14} />
+                    Set up alerts
+                  </button>
+                )}
             </div>
           </div>
           {error && (
@@ -987,6 +910,11 @@ export default function Dashboard() {
                 Public results · Updates after IRCC publishes
               </span>
             </div>
+          )}
+          {message && (
+            <p className="refresh-note" role="status">
+              {message}
+            </p>
           )}
           {!data ? (
             <div className="loading" aria-live="polite">
@@ -1327,244 +1255,16 @@ export default function Dashboard() {
                 </p>
               )}
               {view === "alerts" && (
-                <div className="settings-layout">
-                  <div className="settings-intro">
-                    <h2>New draw notifications</h2>
-                    <p>
-                      One alert per new round, with its category, cutoff and
-                      invitation count.
-                    </p>
-                    <div className="notification-preview">
-                      <span>Notification preview</span>
-                      <strong>New Express Entry draw</strong>
-                      <p>
-                        {latest
-                          ? `${latest.category} · CRS ${latest.crs} · ${fmt(latest.invitations)} invitations`
-                          : "Draw category · CRS cutoff · Invitations"}
-                      </p>
-                      <small>Preview using the latest published round</small>
-                    </div>
-                    <h3>Monitoring status</h3>
-                    <p>
-                      {data.monitor?.checkedAt
-                        ? "Last check: " +
-                          new Date(data.monitor.checkedAt).toLocaleString(
-                            "en-CA",
-                          )
-                        : "No background check has run yet."}
-                    </p>
-                    {data.monitor?.error && (
-                      <p className="error-text">{data.monitor.error}</p>
-                    )}
-                    {data.monitor?.deliveryError && (
-                      <p className="error-text">{data.monitor.deliveryError}</p>
-                    )}
-                    <p className="note">
-                      The server checks IRCC every{" "}
-                      {data.monitoring?.intervalMinutes || 5} minutes, even with
-                      this page closed. This timestamp records actual checks.
-                      The dashboard reads saved results every minute.
-                    </p>
-                  </div>
-                  <section className="settings-panel">
-                    {!admin ? (
-                      <>
-                        <h2>Administrator sign-in</h2>
-                        <p className="note">
-                          Draws and charts are public. Sign in to manage your
-                          email notifications.
-                        </p>
-                        {!authConfigured && (
-                          <p className="notice">
-                            Set ADMIN_PASSWORD in the server configuration to
-                            enable sign-in.
-                          </p>
-                        )}
-                        <form
-                          onSubmit={(e) => {
-                            e.preventDefault();
-                            login();
-                          }}
-                        >
-                          <label className="field">
-                            Administrator password
-                            <input
-                              type="password"
-                              autoComplete="current-password"
-                              value={password}
-                              onChange={(e) => setPassword(e.target.value)}
-                              required
-                            />
-                          </label>
-                          <button
-                            className="button primary"
-                            type="submit"
-                            disabled={saving || !authConfigured}
-                            style={{ marginTop: 16 }}
-                          >
-                            {saving ? "Signing in…" : "Sign in"}
-                          </button>
-                        </form>
-                        {message && (
-                          <p className="message" role="status">
-                            {message}
-                          </p>
-                        )}
-                      </>
-                    ) : (
-                      <>
-                        <div className="panel-head">
-                          <h2>Email preferences</h2>
-                          <button
-                            className="text-button"
-                            onClick={async () => {
-                              await fetch("/api/logout", { method: "POST" });
-                              setAdmin(false);
-                              setSettingsReady(false);
-                            }}
-                          >
-                            Sign out
-                          </button>
-                        </div>
-                        {!settingsReady && (
-                          <p className="notice">
-                            Preferences are unavailable until the database is
-                            connected.
-                          </p>
-                        )}
-                        <label className="switch-row">
-                          <span>
-                            <strong>Enable draw alerts</strong>
-                            <small>
-                              Only newly detected rounds, no historical backlog
-                            </small>
-                          </span>
-                          <input
-                            type="checkbox"
-                            checked={prefs.enabled}
-                            onChange={(e) =>
-                              setPrefs({ ...prefs, enabled: e.target.checked })
-                            }
-                          />
-                        </label>
-                        <label className="field">
-                          Email address
-                          <input
-                            type="email"
-                            placeholder="Email address"
-                            value={prefs.email}
-                            onChange={(e) =>
-                              setPrefs({ ...prefs, email: e.target.value })
-                            }
-                          />
-                        </label>
-                        <p className="notice">
-                          {emailReady
-                            ? "Brevo email delivery connected."
-                            : "Email is not connected yet. Add your Brevo API key and verified sender to the server configuration, then restart the app."}
-                        </p>
-                        <fieldset>
-                          <legend>Which draws?</legend>
-                          <label className="check-row">
-                            <input
-                              type="checkbox"
-                              checked={!prefs.categories.length}
-                              onChange={() =>
-                                setPrefs({ ...prefs, categories: [] })
-                              }
-                            />
-                            All categories
-                          </label>
-                          <div className="category-checks">
-                            {categories.map((c) => (
-                              <label className="check-row" key={c}>
-                                <input
-                                  type="checkbox"
-                                  checked={prefs.categories.includes(c)}
-                                  onChange={() =>
-                                    setPrefs({
-                                      ...prefs,
-                                      categories: prefs.categories.includes(c)
-                                        ? prefs.categories.filter(
-                                            (x) => x !== c,
-                                          )
-                                        : [...prefs.categories, c],
-                                    })
-                                  }
-                                />
-                                {c}
-                              </label>
-                            ))}
-                          </div>
-                        </fieldset>
-                        <div className="settings-actions">
-                          <button
-                            className="button primary"
-                            disabled={!settingsReady || saving}
-                            onClick={save}
-                          >
-                            {saving ? "Working…" : "Save preferences"}
-                            <Check size={14} />
-                          </button>
-                          <button
-                            className="button"
-                            disabled={!settingsReady || saving}
-                            onClick={test}
-                          >
-                            Send test using saved settings
-                          </button>
-                        </div>
-                        {message && (
-                          <p className="message" role="status">
-                            {message}
-                          </p>
-                        )}
-                        <h3 style={{ marginTop: 28 }}>Recent email delivery</h3>
-                        {history.length ? (
-                          <div className="table-wrap">
-                            <table
-                              className="pool-table"
-                              style={{ marginTop: 16 }}
-                            >
-                              <thead>
-                                <tr>
-                                  <th>Round</th>
-                                  <th>Status</th>
-                                  <th>Last update</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {history.map((h) => (
-                                  <tr key={h.draw_id}>
-                                    <td>#{h.draw_id}</td>
-                                    <td>
-                                      {h.status}
-                                      {h.error && (
-                                        <span className="subline">
-                                          {h.error}
-                                        </span>
-                                      )}
-                                    </td>
-                                    <td>
-                                      {new Date(
-                                        h.sent_at || h.created_at,
-                                      ).toLocaleString("en-CA")}
-                                    </td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-                        ) : (
-                          <p className="note">
-                            No draw emails yet. Only matching rounds detected
-                            after alerts are enabled will appear here.
-                          </p>
-                        )}
-                      </>
-                    )}
-                  </section>
-                </div>
+                <Notifications
+                  latest={latest}
+                  categories={categories}
+                  checkedAt={data.monitor?.checkedAt}
+                  interval={data.monitoring?.intervalMinutes || 5}
+                />
+              )}
+              {view === "admin" && <Admin />}
+              {view === "unsubscribe" && (
+                <Unsubscribe token={unsubscribeToken || ""} />
               )}
             </>
           )}
@@ -1577,6 +1277,9 @@ export default function Dashboard() {
             <a href={OFFICIAL} target="_blank" rel="noreferrer">
               Verify with IRCC <ArrowUpRight size={12} />
             </a>
+            <button className="text-button" onClick={() => go("admin")}>
+              Admin
+            </button>
           </footer>
         </main>
       </div>

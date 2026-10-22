@@ -9,9 +9,14 @@ export function openStore(dir) {
  CREATE TABLE IF NOT EXISTS draws(id INTEGER PRIMARY KEY,date TEXT NOT NULL,category TEXT NOT NULL,json TEXT NOT NULL,first_seen TEXT NOT NULL,last_seen TEXT NOT NULL);
  CREATE TABLE IF NOT EXISTS pool_snapshots(date TEXT PRIMARY KEY,json TEXT NOT NULL,first_seen TEXT NOT NULL);
  CREATE TABLE IF NOT EXISTS alerts(id TEXT PRIMARY KEY,draw_id INTEGER NOT NULL,status TEXT NOT NULL,created_at TEXT NOT NULL,sent_at TEXT,error TEXT,attempts INTEGER NOT NULL DEFAULT 0);
+ CREATE TABLE IF NOT EXISTS subscribers(id TEXT PRIMARY KEY,email TEXT NOT NULL UNIQUE,status TEXT NOT NULL DEFAULT 'active',categories TEXT NOT NULL DEFAULT '[]',unsubscribe_token TEXT NOT NULL UNIQUE,created_at TEXT NOT NULL,updated_at TEXT NOT NULL);
+ CREATE TABLE IF NOT EXISTS deliveries(id TEXT PRIMARY KEY,draw_id INTEGER NOT NULL,subscriber_id TEXT NOT NULL REFERENCES subscribers(id) ON DELETE CASCADE,status TEXT NOT NULL,created_at TEXT NOT NULL,sent_at TEXT,error TEXT,attempts INTEGER NOT NULL DEFAULT 0,UNIQUE(draw_id,subscriber_id));
  CREATE TABLE IF NOT EXISTS sessions(token_hash TEXT PRIMARY KEY,expires_at INTEGER NOT NULL);`);
   // A stopped process may leave an alert claimed. Requeue at startup for at-least-once delivery.
   db.prepare("UPDATE alerts SET status='pending' WHERE status='sending'").run();
+  db.prepare(
+    "UPDATE deliveries SET status='pending' WHERE status='sending'",
+  ).run();
   return {
     db,
     read(key) {

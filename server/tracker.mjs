@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import { gunzipSync } from "node:zlib";
 import { readFileSync } from "node:fs";
 import { appendFile, mkdir, readdir, unlink } from "node:fs/promises";
@@ -9,11 +10,56 @@ const bundled = JSON.parse(
     readFileSync(new URL("../lib/data/ircc-snapshot.json.gz", import.meta.url)),
   ).toString("utf8"),
 );
-export const DEFAULT_SETTINGS = { enabled: false, email: "", categories: [] };
+export const DEFAULT_SETTINGS = { enabled: true, categories: [] };
 export function createTracker(store, config, { fetchImpl = fetch } = {}) {
   let active = null;
   let lastBackup = "";
   const settings = () => ({ ...DEFAULT_SETTINGS, ...store.read("settings") });
+  function subscribe(email, categories = []) {
+    const normalized = email.trim().toLowerCase();
+    const existing = store.db
+      .prepare("SELECT id FROM subscribers WHERE email=?")
+      .get(normalized);
+    if (existing) return existing.id;
+    const id = randomBytes(16).toString("hex"),
+      token = randomBytes(32).toString("hex"),
+      now = new Date().toISOString();
+    store.db
+      .prepare(
+        "INSERT INTO subscribers(id,email,status,categories,unsubscribe_token,created_at,updated_at) VALUES(?,?,'active',?,?,?,?)",
+      )
+      .run(id, normalized, JSON.stringify(categories), token, now, now);
+    return id;
+  }
+  // Preserve an earlier single-recipient setup as a subscriber during upgrade.
+  if (!store.read("subscriberMigration")) {
+    const old = store.read("settings");
+    if (old?.email) {
+      const id = subscribe(old.email, old.categories || []);
+      if (!old.enabled)
+        store.db
+          .prepare("UPDATE subscribers SET status='paused' WHERE id=?")
+          .run(id);
+      const legacy = store.db.prepare("SELECT * FROM alerts").all();
+      for (const a of legacy)
+        store.db
+          .prepare(
+            "INSERT OR IGNORE INTO deliveries(id,draw_id,subscriber_id,status,created_at,sent_at,error,attempts) VALUES(?,?,?,?,?,?,?,?)",
+          )
+          .run(
+            "draw-" + a.draw_id + "-" + id,
+            a.draw_id,
+            id,
+            a.status,
+            a.created_at,
+            a.sent_at,
+            a.error,
+            a.attempts,
+          );
+    }
+    store.write("settings", { enabled: true, categories: [] });
+    store.write("subscriberMigration", true);
+  }
   const providers = () => ({
     email: !!(config.brevoApiKey && config.fromEmail),
   });
@@ -61,9 +107,11 @@ export function createTracker(store, config, { fetchImpl = fetch } = {}) {
     const subject = test
       ? "Express Entry · Test notification"
       : `Express Entry #${draw.id}: ${draw.category} · CRS ${draw.crs}`;
-    const text = test
+    let text = test
       ? "Your Express Entry email notifications are connected. New draw alerts will be sent here when monitoring detects a matching round."
       : `${draw.name}\n\nDraw #${draw.id}\nDate: ${draw.date}\nCRS cutoff: ${draw.crs}\nInvitations: ${draw.invitations.toLocaleString("en-CA")}\nTie-breaking rule: ${draw.tieBreak}\n\nOfficial instructions: ${draw.url}\nYour dashboard: ${config.publicUrl}\n\nThis alert reports public draw results. Program, category and tie-breaking requirements still apply.`;
+    if (s.unsubscribe_token)
+      text += `\n\nUnsubscribe: ${config.publicUrl}/?unsubscribe=${s.unsubscribe_token}`;
     const res = await fetchImpl("https://api.brevo.com/v3/smtp/email", {
       method: "POST",
       headers: {
@@ -148,16 +196,25 @@ export function createTracker(store, config, { fetchImpl = fetch } = {}) {
       // Queue and advance the baseline together, so a restart cannot lose a newly detected alert.
       store.db.exec("BEGIN IMMEDIATE");
       try {
-        for (const d of added)
+        const subscribers = store.db
+          .prepare("SELECT * FROM subscribers WHERE status='active'")
+          .all();
+        for (const d of added) {
           if (
-            s.enabled &&
-            (!s.categories.length || s.categories.includes(d.category))
+            !s.enabled ||
+            (s.categories.length && !s.categories.includes(d.category))
           )
+            continue;
+          for (const sub of subscribers) {
+            const categories = JSON.parse(sub.categories);
+            if (categories.length && !categories.includes(d.category)) continue;
             store.db
               .prepare(
-                "INSERT OR IGNORE INTO alerts(id,draw_id,status,created_at) VALUES(?,?,?,?)",
+                "INSERT OR IGNORE INTO deliveries(id,draw_id,subscriber_id,status,created_at) VALUES(?,?,?,'pending',?)",
               )
-              .run("draw-" + d.id, d.id, "pending", now);
+              .run("draw-" + d.id + "-" + sub.id, d.id, sub.id, now);
+          }
+        }
         store.write("dataset", { rounds: raw.rounds, fetchedAt: now });
         store.db.exec("COMMIT");
       } catch (e) {
@@ -168,30 +225,35 @@ export function createTracker(store, config, { fetchImpl = fetch } = {}) {
         deliveryError = null;
       const pending = store.db
         .prepare(
-          "SELECT * FROM alerts WHERE status='pending' ORDER BY draw_id LIMIT 10",
+          "SELECT d.*,s.email,s.status AS subscriber_status,s.categories,s.unsubscribe_token FROM deliveries d JOIN subscribers s ON s.id=d.subscriber_id WHERE d.status='pending' ORDER BY d.draw_id LIMIT 100",
         )
         .all();
       for (const a of pending) {
         if (!s.enabled) break;
         const d = draws.find((d) => d.id === a.draw_id);
         if (!d) continue;
-        if (s.categories.length && !s.categories.includes(d.category)) {
+        const categories = JSON.parse(a.categories);
+        if (
+          a.subscriber_status !== "active" ||
+          (categories.length && !categories.includes(d.category)) ||
+          (s.categories.length && !s.categories.includes(d.category))
+        ) {
           store.db
-            .prepare("UPDATE alerts SET status='skipped' WHERE id=?")
+            .prepare("UPDATE deliveries SET status='skipped' WHERE id=?")
             .run(a.id);
           continue;
         }
         const claimed = store.db
           .prepare(
-            "UPDATE alerts SET status='sending',attempts=attempts+1 WHERE id=? AND status='pending'",
+            "UPDATE deliveries SET status='sending',attempts=attempts+1 WHERE id=? AND status='pending'",
           )
           .run(a.id);
         if (!claimed.changes) continue;
         try {
-          await sendEmail(s, d);
+          await sendEmail(a, d);
           store.db
             .prepare(
-              "UPDATE alerts SET status='sent',sent_at=?,error=NULL WHERE id=?",
+              "UPDATE deliveries SET status='sent',sent_at=?,error=NULL WHERE id=?",
             )
             .run(now, a.id);
           delivered++;
@@ -199,7 +261,9 @@ export function createTracker(store, config, { fetchImpl = fetch } = {}) {
         } catch (e) {
           deliveryError = e.message;
           store.db
-            .prepare("UPDATE alerts SET status='pending',error=? WHERE id=?")
+            .prepare(
+              "UPDATE deliveries SET status='pending',error=? WHERE id=?",
+            )
             .run(deliveryError, a.id);
           await log("email-failed", deliveryError);
         }
@@ -253,13 +317,56 @@ export function createTracker(store, config, { fetchImpl = fetch } = {}) {
     providers,
     sync,
     sendEmail,
+    subscribe,
+    subscribers() {
+      return store.db
+        .prepare(
+          "SELECT id,email,status,categories,created_at,updated_at FROM subscribers ORDER BY created_at DESC",
+        )
+        .all()
+        .map((s) => ({ ...s, categories: JSON.parse(s.categories) }));
+    },
+    subscriber(id) {
+      return store.db.prepare("SELECT * FROM subscribers WHERE id=?").get(id);
+    },
+    manageSubscriber(id, action) {
+      if (action === "remove") {
+        store.db.prepare("DELETE FROM subscribers WHERE id=?").run(id);
+        return;
+      }
+      store.db
+        .prepare("UPDATE subscribers SET status=?,updated_at=? WHERE id=?")
+        .run(
+          action === "pause" ? "paused" : "active",
+          new Date().toISOString(),
+          id,
+        );
+      if (action === "pause")
+        store.db
+          .prepare(
+            "UPDATE deliveries SET status='skipped' WHERE subscriber_id=? AND status='pending'",
+          )
+          .run(id);
+    },
+    unsubscribe(token) {
+      const r = store.db
+        .prepare(
+          "UPDATE subscribers SET status='unsubscribed',updated_at=? WHERE unsubscribe_token=?",
+        )
+        .run(new Date().toISOString(), token);
+      return !!r.changes;
+    },
     saveSettings(s) {
-      store.write("settings", s);
+      if (s.email) subscribe(s.email, s.categories || []);
+      store.write("settings", {
+        enabled: s.enabled,
+        categories: s.categories || [],
+      });
     },
     history() {
       return store.db
         .prepare(
-          "SELECT draw_id,status,created_at,sent_at,error,attempts FROM alerts ORDER BY created_at DESC LIMIT 30",
+          "SELECT d.id,d.draw_id,d.status,d.created_at,d.sent_at,d.error,d.attempts,s.email FROM deliveries d JOIN subscribers s ON s.id=d.subscriber_id ORDER BY d.created_at DESC LIMIT 50",
         )
         .all();
     },

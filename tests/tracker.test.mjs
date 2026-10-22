@@ -160,3 +160,88 @@ test("email content links directly to official instructions", async (t) => {
   assert.match(mail.textContent, /Tie-breaking/);
   assert.equal(mail.to[0].email, "recipient@example.test");
 });
+
+test("each subscriber receives a new draw separately without exposing other recipients", async (t) => {
+  const mails = [];
+  const raw = [nextRaw(), ...source];
+  const { tracker } = fixture(t, async (url, opts) => {
+    if (url.includes("brevo")) {
+      mails.push(JSON.parse(opts.body));
+      return Response.json({ messageId: "test" });
+    }
+    return Response.json({ rounds: raw });
+  });
+  tracker.subscribe("first@example.test");
+  tracker.subscribe("second@example.test");
+  await tracker.sync();
+  await tracker.sync();
+  assert.equal(mails.length, 2);
+  assert.ok(mails.every((m) => m.to.length === 1));
+  assert.ok(mails.every((m) => m.textContent.includes("?unsubscribe=")));
+  assert.equal(tracker.history().length, 2);
+});
+test("paused, removed and unsubscribed addresses do not get new draw alerts", async (t) => {
+  let emails = 0;
+  const raw = [nextRaw(), ...source];
+  const { tracker } = fixture(t, async (url) => {
+    if (url.includes("brevo")) {
+      emails++;
+      return Response.json({});
+    }
+    return Response.json({ rounds: raw });
+  });
+  const paused = tracker.subscribe("paused@example.test");
+  tracker.manageSubscriber(paused, "pause");
+  const removed = tracker.subscribe("removed@example.test");
+  tracker.manageSubscriber(removed, "remove");
+  const unsub = tracker.subscribe("unsub@example.test");
+  tracker.unsubscribe(tracker.subscriber(unsub).unsubscribe_token);
+  tracker.subscribe("active@example.test");
+  await tracker.sync();
+  assert.equal(emails, 1);
+  assert.equal(tracker.subscribers().length, 3);
+});
+test("subscriber category selections control delivery and signup never sends old draws", async (t) => {
+  let emails = 0,
+    raw = source;
+  const { tracker } = fixture(t, async (url) => {
+    if (url.includes("brevo")) {
+      emails++;
+      return Response.json({});
+    }
+    return Response.json({ rounds: raw });
+  });
+  tracker.subscribe("cec@example.test", ["CEC"]);
+  await tracker.sync();
+  assert.equal(emails, 0);
+  raw = [nextRaw(), ...source];
+  await tracker.sync();
+  assert.equal(emails, 0);
+});
+test("old single recipient migrates once without replacing the database", async (t) => {
+  const dir = mkdtempSync(join(tmpdir(), "ee-migration-"));
+  const store = openStore(dir);
+  t.after(() => {
+    store.close();
+    rmSync(dir, { recursive: true, force: true });
+  });
+  store.write("settings", {
+    enabled: true,
+    email: "previous@example.test",
+    categories: ["CEC"],
+  });
+  const cfg = { dataDir: dir, pollMinutes: 5 };
+  store.db
+    .prepare(
+      "INSERT INTO alerts(id,draw_id,status,created_at,sent_at) VALUES('draw-old',450,'sent','2026-10-20','2026-10-20')",
+    )
+    .run();
+  const tracker = createTracker(store, cfg);
+  assert.equal(tracker.history().length, 1);
+  assert.equal(tracker.history()[0].status, "sent");
+  assert.equal(tracker.subscribers().length, 1);
+  assert.equal(tracker.subscribers()[0].email, "previous@example.test");
+  assert.deepEqual(tracker.subscribers()[0].categories, ["CEC"]);
+  createTracker(store, cfg);
+  assert.equal(tracker.subscribers().length, 1);
+});

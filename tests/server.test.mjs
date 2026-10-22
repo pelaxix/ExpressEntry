@@ -9,19 +9,23 @@ test("production HTTP API protects settings, checks origins, authenticates and s
   const port = 31077;
   const url = "http://127.0.0.1:" + port;
   const origin = "https://ee.example.test";
-  const child = spawn(process.execPath, ["server/index.mjs"], {
-    env: {
-      ...process.env,
-      PORT: String(port),
-      DATA_DIR: dir,
-      PUBLIC_URL: origin,
-      ADMIN_PASSWORD: "test-only-password",
-      BREVO_API_KEY: "",
-      ALERT_FROM_EMAIL: "",
-      DEV_ORIGIN: "",
+  const child = spawn(
+    process.execPath,
+    ["--import", "./tests/mock-network.mjs", "server/index.mjs"],
+    {
+      env: {
+        ...process.env,
+        PORT: String(port),
+        DATA_DIR: dir,
+        PUBLIC_URL: origin,
+        ADMIN_PASSWORD: "test-only-password",
+        BREVO_API_KEY: "",
+        ALERT_FROM_EMAIL: "",
+        DEV_ORIGIN: "",
+      },
+      stdio: ["ignore", "pipe", "pipe"],
     },
-    stdio: ["ignore", "pipe", "pipe"],
-  });
+  );
   t.after(async () => {
     child.kill("SIGTERM");
     await new Promise((r) => child.once("exit", r));
@@ -46,6 +50,55 @@ test("production HTTP API protects settings, checks origins, authenticates and s
   assert.ok(d.draws.length >= 400);
   assert.ok(d.poolSnapshots.length > 10);
   assert.equal(d.monitoring.intervalMinutes, 5);
+  // Visitors can refresh shared results and subscribe without an account.
+  r = await fetch(url + "/api/sync", {
+    method: "POST",
+    headers: { Origin: origin },
+  });
+  assert.equal(r.status, 200);
+  const checked = (await (await fetch(url + "/api/data")).json()).fetchedAt;
+  r = await fetch(url + "/api/sync", {
+    method: "POST",
+    headers: { Origin: origin },
+  });
+  assert.equal(r.status, 200);
+  assert.equal((await r.json()).cached, true);
+  assert.equal(
+    (await (await fetch(url + "/api/data")).json()).fetchedAt,
+    checked,
+  );
+  const streamAbort = new AbortController();
+  const stream = await fetch(url + "/api/events", {
+    signal: streamAbort.signal,
+  });
+  assert.match(stream.headers.get("content-type"), /text\/event-stream/);
+  const reader = stream.body.getReader();
+  await reader.read();
+  const pushed = reader.read();
+  r = await fetch(url + "/api/sync", {
+    method: "POST",
+    headers: { Origin: origin },
+  });
+  assert.equal(r.status, 200);
+  const update = await pushed;
+  assert.match(new TextDecoder().decode(update.value), /event: updated/);
+  streamAbort.abort();
+  r = await fetch(url + "/api/subscribers");
+  assert.equal(r.status, 401);
+  for (const email of ["Person@Example.test", "person@example.test"]) {
+    r = await fetch(url + "/api/subscribe", {
+      method: "POST",
+      headers: { Origin: origin, "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+    });
+    assert.equal(r.status, 200);
+  }
+  r = await fetch(url + "/api/subscribe", {
+    method: "POST",
+    headers: { Origin: origin, "Content-Type": "application/json" },
+    body: JSON.stringify({ email: "invalid" }),
+  });
+  assert.equal(r.status, 400);
   r = await fetch(url + "/api/settings");
   assert.equal(r.status, 401);
   r = await fetch(url + "/api/login", {
@@ -100,6 +153,41 @@ test("production HTTP API protects settings, checks origins, authenticates and s
     }),
   });
   assert.equal(r.status, 200);
+  r = await fetch(url + "/api/subscribers", { headers: { Cookie: cookie } });
+  assert.equal(r.status, 200);
+  const list = (await r.json()).subscribers;
+  assert.equal(list.length, 1);
+  assert.equal(list[0].email, "person@example.test");
+  assert.equal("unsubscribe_token" in list[0], false);
+  r = await fetch(url + "/api/data");
+  assert.equal(
+    JSON.stringify(await r.json()).includes("person@example.test"),
+    false,
+  );
+  r = await fetch(url + "/api/subscribers", {
+    method: "POST",
+    headers: {
+      Origin: origin,
+      Cookie: cookie,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ id: list[0].id, action: "pause" }),
+  });
+  assert.equal(r.status, 200);
+  r = await fetch(url + "/api/subscribers", { headers: { Cookie: cookie } });
+  assert.equal((await r.json()).subscribers[0].status, "paused");
+  r = await fetch(url + "/api/subscribers", {
+    method: "POST",
+    headers: {
+      Origin: origin,
+      Cookie: cookie,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ id: list[0].id, action: "remove" }),
+  });
+  assert.equal(r.status, 200);
+  r = await fetch(url + "/api/subscribers", { headers: { Cookie: cookie } });
+  assert.equal((await r.json()).subscribers.length, 0);
   r = await fetch(url + "/");
   assert.equal(r.status, 200);
   assert.match(await r.text(), /Express Entry/);

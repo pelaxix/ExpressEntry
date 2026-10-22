@@ -122,14 +122,30 @@ export function signed(n: number) {
 }
 
 /** Padded CRS bounds for the visible results; never flatten a narrow trend to 0–1200. */
-export function crsDomain(values: number[], reference: number | null = null): [number, number] {
-  const finite = values.filter((n) => Number.isFinite(n) && n >= 0 && n <= 1200);
-  if (reference !== null && Number.isFinite(reference) && reference >= 0 && reference <= 1200) finite.push(reference);
+export function crsDomain(
+  values: number[],
+  reference: number | null = null,
+): [number, number] {
+  const finite = values.filter(
+    (n) => Number.isFinite(n) && n >= 0 && n <= 1200,
+  );
+  if (
+    reference !== null &&
+    Number.isFinite(reference) &&
+    reference >= 0 &&
+    reference <= 1200
+  )
+    finite.push(reference);
   if (!finite.length) return [0, 1200];
-  const min = Math.min(...finite), max = Math.max(...finite);
+  const min = Math.min(...finite),
+    max = Math.max(...finite);
   const padding = Math.max(3, (max - min) * 0.12);
   const roughStep = (max - min + padding * 2) / 4;
   const magnitude = 10 ** Math.floor(Math.log10(roughStep));
-  const step = ([1, 2, 5, 10].find((n) => n * magnitude >= roughStep) ?? 10) * magnitude;
-  return [Math.max(0, Math.floor((min - padding) / step) * step), Math.min(1200, Math.ceil((max + padding) / step) * step)];
+  const step =
+    ([1, 2, 5, 10].find((n) => n * magnitude >= roughStep) ?? 10) * magnitude;
+  return [
+    Math.max(0, Math.floor((min - padding) / step) * step),
+    Math.min(1200, Math.ceil((max + padding) / step) * step),
+  ];
 }

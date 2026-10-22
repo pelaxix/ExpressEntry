@@ -38,14 +38,17 @@ Code belongs in `C:\Dev\ExpressEntry`; data belongs in **`D:\DevData\ExpressEntr
 
 ## Email notifications
 
-1. Create a transactional API key in **your Brevo account** and verify the sender email/domain there.
-2. Open `D:\DevData\ExpressEntry\.env` and fill `BREVO_API_KEY` and `ALERT_FROM_EMAIL`. Do not put credentials in GitHub or frontend code.
-3. Restart the task: `Stop-ScheduledTask Pelaxix-ExpressEntry` then `Start-ScheduledTask Pelaxix-ExpressEntry`.
-4. Open **Notifications**, sign in with the admin password, save the recipient email and categories, enable alerts, and send a test using the saved preferences.
+1. Reuse a transactional API key in **your Brevo account**, with a verified sender email/domain.
+2. Keep `BREVO_API_KEY` as a Windows **Machine** environment variable. The task launcher reads the current Machine value on each start, including when it runs under SYSTEM. Configure `ALERT_FROM_EMAIL` in `D:\DevData\ExpressEntry\.env` or as a Machine environment variable. A local `.env` key is also supported but unnecessary when the environment variable is present. Never commit credentials.
+3. Restart the task after changing configuration: `Stop-ScheduledTask Pelaxix-ExpressEntry` then `Start-ScheduledTask Pelaxix-ExpressEntry`.
+4. Visitors open **Notifications**, enter an email address and subscribe. No account or administrator password is needed. Optional category selections narrow their alerts.
+5. The **Admin** link in the footer opens subscriber management. Sign in with the existing admin password to pause/resume/remove subscribers, pause all delivery, view delivery history or send a test to a listed subscriber. There is no separate admin recipient field.
 
-The server checks IRCC on startup and every five minutes, independent of browsers. New matching draws queue one email per draw number. Historical imports never create a backlog. Provider failures retry on the next check and appear in delivery history. As with most email systems, delivery is at-least-once: a crash or ambiguous timeout after Brevo accepts a message can produce a duplicate on retry. Successful deliveries are not resent. Test messages do not enter draw history. A new category is automatically included when “All categories” is selected.
+The server checks IRCC on startup and every five minutes. **Check now is public** and refreshes the same shared database for everyone. Simultaneous checks share one request; a successful check in the last ten seconds is reused without showing a lock or asking visitors to sign in. Open dashboards receive an update event and reload saved results; a one-minute fallback poll remains available if the stream disconnects.
 
-The application only sends email after a recipient is configured and alerts are enabled, or an administrator explicitly sends a test. Keeping the process running, working internet and an operational Brevo account are required; five-minute checks are not an instant publication guarantee.
+Each matching active subscriber receives a separate email, never a visible group recipient list. Draw/subscriber pairs are deduplicated. Historical imports and new signups never send an old-draw backlog. Paused, removed and unsubscribed addresses are skipped. Each draw email has an unsubscribe link that opens a confirmation page without requiring an account. Repeated signups for the same address do not create duplicate subscriptions. An earlier configured single recipient is migrated into the subscriber list once.
+
+Provider failures retry on the next check and appear in admin delivery history. Delivery is at-least-once: an ambiguous provider timeout or crash after Brevo accepts an email can produce a duplicate on retry. Successful deliveries are not resent. Keeping the process running, working internet and an operational Brevo account are required. Five-minute checks are not an instant-publication guarantee.
 
 ## Caddy
 
@@ -57,7 +60,7 @@ Matches the existing setup:
  }
 ```
 
-The application binds to loopback. Keep `PUBLIC_URL=https://ee.pelaxix.com` so the origin checks and secure session cookie match your deployment. Public visitors may read the draw data; notification settings and manual IRCC checks require administrator sign-in.
+The application binds to loopback. Keep `PUBLIC_URL=https://ee.pelaxix.com` so the origin checks and secure session cookie match your deployment. Draws, manual checks, email signup and token-based unsubscribe are public. Subscriber lists, recipient management, provider status and test emails require administrator sign-in.
 
 ## Updating
 

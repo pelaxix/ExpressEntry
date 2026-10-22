@@ -35,7 +35,42 @@ if (store.read("adminPasswordFingerprint") !== passwordFingerprint) {
   store.write("adminPasswordFingerprint", passwordFingerprint);
 }
 const failures = new Map();
-let lastManual = 0;
+const eventClients = new Set();
+let currentSync = null,
+  lastSharedSync = 0;
+function sharedSync(force = false) {
+  if (currentSync) return currentSync;
+  if (!force && Date.now() - lastSharedSync < 10000) {
+    for (const res of eventClients) res.write("event: updated\ndata: {}\n\n");
+    return Promise.resolve({ ...tracker.dataset().monitor, cached: true });
+  }
+  currentSync = tracker
+    .sync()
+    .then((result) => {
+      lastSharedSync = Date.now();
+      for (const res of eventClients) res.write("event: updated\ndata: {}\n\n");
+      return result;
+    })
+    .finally(() => {
+      currentSync = null;
+    });
+  return currentSync;
+}
+function validEmail(value) {
+  return (
+    typeof value === "string" &&
+    value.trim().length <= 254 &&
+    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim())
+  );
+}
+function validCategories(value) {
+  return (
+    Array.isArray(value) &&
+    value.length <= 30 &&
+    value.every((c) => typeof c === "string" && c.length <= 150)
+  );
+}
+
 function admin(req) {
   const cookie = (req.headers.cookie || "")
     .split(";")
@@ -155,24 +190,53 @@ const server = createServer(async (req, res) => {
           },
         );
       }
-      if (url.pathname === "/api/sync" && req.method === "POST") {
-        if (!admin(req))
-          return json(res, 401, {
-            error:
-              "Sign in under Notifications to check IRCC manually. Automatic monitoring continues in the background.",
-          });
-        if (Date.now() - lastManual < 60000)
-          return json(res, 429, {
-            error:
-              "IRCC was checked recently. Wait one minute before checking again.",
-          });
-        lastManual = Date.now();
-        return json(res, 200, await tracker.sync());
+      if (url.pathname === "/api/events" && req.method === "GET") {
+        res.writeHead(200, {
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-cache",
+          Connection: "keep-alive",
+          "X-Accel-Buffering": "no",
+        });
+        res.write(": connected\n\n");
+        eventClients.add(res);
+        const heartbeat = setInterval(
+          () => res.write(": heartbeat\n\n"),
+          30000,
+        );
+        heartbeat.unref();
+        req.on("close", () => {
+          clearInterval(heartbeat);
+          eventClients.delete(res);
+        });
+        return;
+      }
+      if (url.pathname === "/api/sync" && req.method === "POST")
+        return json(res, 200, await sharedSync());
+      if (url.pathname === "/api/subscribe" && req.method === "POST") {
+        const b = await body(req);
+        if (!validEmail(b.email) || !validCategories(b.categories || []))
+          return json(res, 400, { error: "Enter a valid email address." });
+        tracker.subscribe(b.email, b.categories || []);
+        return json(res, 200, {
+          ok: true,
+          message:
+            "You're subscribed. Watch your inbox for the next matching draw.",
+        });
+      }
+      if (url.pathname === "/api/unsubscribe" && req.method === "POST") {
+        const b = await body(req);
+        if (typeof b.token !== "string" || !/^[a-f0-9]{64}$/.test(b.token))
+          return json(res, 400, { error: "This unsubscribe link is invalid." });
+        tracker.unsubscribe(b.token);
+        return json(res, 200, { ok: true });
       }
       if (
-        ["/api/settings", "/api/test-alert", "/api/alert-history"].includes(
-          url.pathname,
-        ) &&
+        [
+          "/api/settings",
+          "/api/test-alert",
+          "/api/alert-history",
+          "/api/subscribers",
+        ].includes(url.pathname) &&
         !admin(req)
       )
         return json(res, 401, { error: "Administrator sign-in required." });
@@ -186,36 +250,40 @@ const server = createServer(async (req, res) => {
         const s = await body(req);
         if (
           typeof s.enabled !== "boolean" ||
-          typeof s.email !== "string" ||
-          s.email.length > 254 ||
-          (s.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s.email)) ||
-          !Array.isArray(s.categories) ||
-          s.categories.length > 30 ||
-          s.categories.some((c) => typeof c !== "string" || c.length > 150)
+          !validCategories(s.categories || [])
         )
-          return json(res, 400, { error: "Enter valid email preferences." });
-        if (s.enabled && (!s.email || !tracker.providers().email))
+          return json(res, 400, { error: "Invalid delivery settings." });
+        if (s.enabled && !tracker.providers().email)
           return json(res, 400, {
-            error:
-              "Add an email address and configure Brevo before enabling alerts.",
+            error: "Configure Brevo before enabling email delivery.",
           });
         tracker.saveSettings({
           enabled: s.enabled,
-          email: s.email,
-          categories: s.categories,
+          categories: s.categories || [],
         });
         return json(res, 200, { ok: true });
       }
       if (url.pathname === "/api/test-alert" && req.method === "POST") {
-        await tracker.sendEmail(
-          tracker.settings(),
-          tracker.dataset().draws[0],
-          true,
-        );
+        const b = await body(req);
+        const sub = tracker.subscriber(b.id);
+        if (!sub) return json(res, 404, { error: "Subscriber not found." });
+        await tracker.sendEmail(sub, tracker.dataset().draws[0], true);
         return json(res, 200, { ok: true });
       }
       if (url.pathname === "/api/alert-history" && req.method === "GET")
         return json(res, 200, { alerts: tracker.history() });
+      if (url.pathname === "/api/subscribers" && req.method === "GET")
+        return json(res, 200, { subscribers: tracker.subscribers() });
+      if (url.pathname === "/api/subscribers" && req.method === "POST") {
+        const b = await body(req);
+        if (
+          typeof b.id !== "string" ||
+          !["pause", "resume", "remove"].includes(b.action)
+        )
+          return json(res, 400, { error: "Invalid subscriber action." });
+        tracker.manageSubscriber(b.id, b.action);
+        return json(res, 200, { ok: true });
+      }
       return json(res, 404, { error: "Not found." });
     }
     if (req.method !== "GET" && req.method !== "HEAD")
@@ -255,7 +323,7 @@ const server = createServer(async (req, res) => {
   }
 });
 const timer = setInterval(
-  () => tracker.sync().catch(() => {}),
+  () => sharedSync(true).catch(() => {}),
   config.pollMinutes * 60000,
 );
 timer.unref();
@@ -269,10 +337,13 @@ server.listen(config.port, config.host, () => {
   );
   if (!config.adminPassword)
     console.log("Admin sign-in disabled until ADMIN_PASSWORD is configured.");
-  tracker.sync().catch((e) => console.error("Initial IRCC check:", e.message));
+  sharedSync(true).catch((e) =>
+    console.error("Initial IRCC check:", e.message),
+  );
 });
 function shutdown() {
   clearInterval(timer);
+  for (const client of eventClients) client.end();
   server.close(() => {
     store.close();
     process.exit(0);
