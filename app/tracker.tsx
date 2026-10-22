@@ -636,7 +636,9 @@ export default function Dashboard() {
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false),
     [menu, setMenu] = useState(false),
-    [dark, setDark] = useState(false),
+    [dark, setDark] = useState(() => {
+      try { return localStorage.getItem("ee-theme-choice") === "dark"; } catch { return false; }
+    }),
     [year, setYear] = useState(String(new Date().getFullYear())),
     [cat, setCat] = useState("All categories"),
     [trendCat, setTrendCat] = useState("CEC"),
@@ -679,11 +681,6 @@ export default function Dashboard() {
   }
   useEffect(() => {
     load().catch((e) => setError(e.message));
-    const stored = localStorage.getItem("ee-theme");
-    const d = stored
-      ? stored === "dark"
-      : window.matchMedia("(prefers-color-scheme: dark)").matches;
-    setDark(d);
     const s = localStorage.getItem("ee-score");
     if (s) setScoreText(s);
     const timer = setInterval(() => load().catch(() => {}), 60000);
@@ -696,7 +693,7 @@ export default function Dashboard() {
   }, []);
   useEffect(() => {
     document.documentElement.dataset.theme = dark ? "dark" : "light";
-    localStorage.setItem("ee-theme", dark ? "dark" : "light");
+    try { localStorage.setItem("ee-theme-choice", dark ? "dark" : "light"); } catch {}
   }, [dark]);
   useEffect(() => {
     localStorage.setItem("ee-score", scoreText);
