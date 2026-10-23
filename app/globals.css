@@ -1856,3 +1856,34 @@ dialog > a {
 #noc-detail {
   scroll-margin-top: 24px;
 }
+
+/* CRS calculator: profile form with a persistent, readable score breakdown. */
+.crs-layout { display:grid; grid-template-columns:minmax(0, 1fr) minmax(280px, 340px); gap:20px; align-items:start; }
+.crs-form { display:grid; gap:20px; min-width:0; }
+.crs-section, .crs-result { padding:24px; }
+.crs-section h2, .crs-result h2 { margin:0 0 14px; font-size:20px; }
+.crs-section p { line-height:1.6; }
+.crs-fields { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
+.crs-field { display:grid; gap:7px; min-width:0; margin:12px 0; }
+.crs-field input, .crs-field select { width:100%; min-width:0; min-height:44px; padding:9px 10px; color:var(--text); background:var(--surface); border:1px solid var(--control); border-radius:4px; }
+.crs-field span { font-weight:500; }
+.crs-language { border:0; padding:0; margin:20px 0; min-width:0; }
+.crs-language legend { font-weight:600; }
+.crs-abilities { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:0 14px; }
+.crs-check { display:flex; align-items:flex-start; gap:10px; padding:12px 0; line-height:1.6; }
+.crs-check input { width:18px; height:18px; flex-shrink:0; margin-top:3px; accent-color:var(--accent); }
+.crs-note { color:var(--muted); font-size:14px; line-height:1.6; }
+.crs-note a, .crs-source { text-decoration:underline; text-underline-offset:3px; }
+.crs-source { display:block; margin:16px 0; font-size:14px; }
+.crs-job { display:grid; grid-template-columns:minmax(0,1fr) 100px auto; gap:10px; align-items:center; }
+.crs-job > span { grid-column:1/-1; }
+.crs-result { position:sticky; top:20px; }
+.crs-total { display:block; font-size:72px; letter-spacing:-.05em; line-height:1.1; color:var(--accent); font-variant-numeric:tabular-nums; }
+.crs-current, .crs-breakdown > div { display:flex; justify-content:space-between; gap:16px; padding:9px 0; }
+.crs-current { background:var(--raised); padding:14px; margin:20px 0; }
+.crs-breakdown { font-size:14px; }
+.crs-breakdown dd { margin:0; font-weight:600; font-variant-numeric:tabular-nums; }
+.crs-result details { margin:18px 0; font-size:14px; line-height:1.6; }
+.crs-result summary { cursor:pointer; font-weight:500; }
+@media(max-width:1100px) { .crs-layout { grid-template-columns:1fr; } .crs-result { position:static; grid-row:1; } }
+@media(max-width:540px) { .crs-fields { grid-template-columns:1fr; gap:0; } .crs-section,.crs-result { padding:18px; } .crs-job { grid-template-columns:minmax(0,1fr) 90px; } .crs-job .button { justify-self:start; } }

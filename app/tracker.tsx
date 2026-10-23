@@ -1,3 +1,4 @@
+import Calculator from "./calculator";
 import Noc from "./noc";
 import { Standing, PoolCompare, DrawCalendar } from "./insights";
 import Updates from "./updates";
@@ -98,6 +99,7 @@ const titles = {
   standing: "Where do I stand?",
   compare: "Compare pool snapshots",
   calendar: "Draw calendar",
+  calculator: "CRS calculator",
   noc: "NOC occupation search",
   updates: "IRCC updates",
   alerts: "Notifications",
@@ -111,6 +113,7 @@ const nav = [
   { id: "standing", label: "My CRS comparison", icon: Info },
   { id: "compare", label: "Compare pools", icon: ChartNoAxesCombined },
   { id: "calendar", label: "Draw calendar", icon: Table2 },
+  { id: "calculator", label: "CRS calculator", icon: Table2 },
   { id: "noc", label: "NOC codes", icon: Search },
   { id: "updates", label: "IRCC updates", icon: ExternalLink },
   { id: "alerts", label: "Notifications", icon: Bell },
@@ -874,6 +877,8 @@ export default function Dashboard() {
                           ? "See how the candidate pool changes between snapshots."
                           : view === "calendar"
                             ? "Published rounds by date and category."
+                            : view === "calculator"
+                              ? "Your points under current and November 3, 2026 rules."
                             : view === "noc"
                               ? "Official occupation codes, duties and TEER categories."
                               : view === "updates"
@@ -942,7 +947,8 @@ export default function Dashboard() {
               {message}
             </p>
           )}
-          {!data ? (
+          {view === "calculator" && <Calculator />}
+          {view === "calculator" ? null : !data ? (
             <div className="loading" aria-live="polite">
               <div className="loading-line" />
               <h2>Loading official draw data</h2>
