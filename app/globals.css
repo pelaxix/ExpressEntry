@@ -1793,4 +1793,66 @@ dialog > a {
   margin: 16px 0;
 }
 
-.email-preview .email-preview-subject{margin:0 0 12px;padding:12px 16px;background:var(--raised);border-radius:6px;font-size:14px;line-height:1.6;color:var(--text);overflow-wrap:anywhere}
+.email-preview .email-preview-subject {
+  margin: 0 0 12px;
+  padding: 12px 16px;
+  background: var(--raised);
+  border-radius: 6px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+.noc-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: end;
+  margin: 24px 0;
+}
+.noc-controls label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+  min-width: 180px;
+  font-size: 13px;
+}
+.noc-controls input,
+.noc-controls select {
+  padding: 11px 12px;
+  border: 1px solid var(--control);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+  width: 100%;
+}
+.noc-title {
+  text-align: left;
+  white-space: normal;
+}
+.noc-pagination {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  justify-content: flex-end;
+  margin-top: 20px;
+}
+.noc-details {
+  padding: 16px 0;
+  border-top: 1px solid var(--border);
+  line-height: 1.6;
+}
+.noc-details summary {
+  cursor: pointer;
+  font-weight: 500;
+}
+.noc-details li {
+  margin: 8px 0;
+}
+.noc-details ul {
+  padding-left: 22px;
+}
+#noc-detail {
+  scroll-margin-top: 24px;
+}

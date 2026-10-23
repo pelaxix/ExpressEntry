@@ -1,3 +1,4 @@
+import Noc from "./noc";
 import { Standing, PoolCompare, DrawCalendar } from "./insights";
 import Updates from "./updates";
 import Notifications, { Unsubscribe } from "./notifications";
@@ -97,6 +98,7 @@ const titles = {
   standing: "Where do I stand?",
   compare: "Compare pool snapshots",
   calendar: "Draw calendar",
+  noc: "NOC occupation search",
   updates: "IRCC updates",
   alerts: "Notifications",
   admin: "Administration",
@@ -109,6 +111,7 @@ const nav = [
   { id: "standing", label: "My CRS comparison", icon: Info },
   { id: "compare", label: "Compare pools", icon: ChartNoAxesCombined },
   { id: "calendar", label: "Draw calendar", icon: Table2 },
+  { id: "noc", label: "NOC codes", icon: Search },
   { id: "updates", label: "IRCC updates", icon: ExternalLink },
   { id: "alerts", label: "Notifications", icon: Bell },
 ] as const;
@@ -637,7 +640,11 @@ export default function Dashboard() {
     [busy, setBusy] = useState(false),
     [menu, setMenu] = useState(false),
     [dark, setDark] = useState(() => {
-      try { return localStorage.getItem("ee-theme-choice") === "dark"; } catch { return false; }
+      try {
+        return localStorage.getItem("ee-theme-choice") === "dark";
+      } catch {
+        return false;
+      }
     }),
     [year, setYear] = useState(String(new Date().getFullYear())),
     [cat, setCat] = useState("All categories"),
@@ -693,7 +700,9 @@ export default function Dashboard() {
   }, []);
   useEffect(() => {
     document.documentElement.dataset.theme = dark ? "dark" : "light";
-    try { localStorage.setItem("ee-theme-choice", dark ? "dark" : "light"); } catch {}
+    try {
+      localStorage.setItem("ee-theme-choice", dark ? "dark" : "light");
+    } catch {}
   }, [dark]);
   useEffect(() => {
     localStorage.setItem("ee-score", scoreText);
@@ -865,13 +874,15 @@ export default function Dashboard() {
                           ? "See how the candidate pool changes between snapshots."
                           : view === "calendar"
                             ? "Published rounds by date and category."
-                            : view === "updates"
-                              ? "Announcements and publications, straight from IRCC."
-                              : view === "admin"
-                                ? "Manage subscribers and email delivery."
-                                : view === "unsubscribe"
-                                  ? "Control the emails you receive."
-                                  : "Get new draw results by email. No account needed."}
+                            : view === "noc"
+                              ? "Official occupation codes, duties and TEER categories."
+                              : view === "updates"
+                                ? "Announcements and publications, straight from IRCC."
+                                : view === "admin"
+                                  ? "Manage subscribers and email delivery."
+                                  : view === "unsubscribe"
+                                    ? "Control the emails you receive."
+                                    : "Get new draw results by email. No account needed."}
               </p>
             </div>
             <div className="header-actions">
@@ -1288,6 +1299,7 @@ export default function Dashboard() {
               {view === "calendar" && (
                 <DrawCalendar draws={draws} categories={categories} />
               )}
+              {view === "noc" && <Noc />}
               {view === "updates" && <Updates />}
               {view === "admin" && <Admin />}
               {view === "unsubscribe" && (
