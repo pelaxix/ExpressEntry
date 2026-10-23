@@ -1,3 +1,4 @@
+import { createHighWageFeed } from "./high-wage.mjs";
 import { createNocFeed } from "./noc.mjs";
 import { createSocialFeed } from "./social.mjs";
 import { createNewsFeed } from "./news.mjs";
@@ -119,6 +120,7 @@ function safeEqual(a, b) {
     createHash("sha256").update(b).digest(),
   );
 }
+const highWageFeed = createHighWageFeed(dataDir);
 const nocFeed = createNocFeed(dataDir);
 const newsFeed = createNewsFeed(dataDir);
 const socialFeed = createSocialFeed(dataDir);
@@ -132,6 +134,8 @@ const server = createServer(async (req, res) => {
         return json(res, 403, { error: "Invalid request origin." });
       if (url.pathname === "/api/social" && req.method === "GET")
         return json(res, 200, await socialFeed());
+      if (url.pathname === "/api/high-wage" && req.method === "GET")
+        return json(res, 200, await highWageFeed());
       if (url.pathname === "/api/noc" && req.method === "GET")
         return json(res, 200, await nocFeed());
       if (url.pathname === "/api/news" && req.method === "GET")

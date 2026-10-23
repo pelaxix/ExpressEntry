@@ -1,7 +1,7 @@
 # Validation
 
 - Production TypeScript check and Vite build pass in Node 24 on Linux.
-- Thirty-six Node tests pass, covering chart scaling, public refresh and signup, live update events, subscriber-list authorization, multiple recipients, subscriber pause/removal/unsubscribe, old-recipient migration, unsubscribe deletion and queue cancellation (including in-progress batches), HTML/plain-text email facts, test/latest-round parity, HTML escaping and link sanitization, and the original checks: official pool arithmetic; archive import without historical email backlog; once-per-draw successful delivery under concurrent checks; category filtering; delivery retries; last-good-data preservation; official email links; production HTTP authentication/origin checks and static serving.
+- Thirty-nine Node tests pass, covering chart scaling, public refresh and signup, live update events, subscriber-list authorization, multiple recipients, subscriber pause/removal/unsubscribe, old-recipient migration, unsubscribe deletion and queue cancellation (including in-progress batches), HTML/plain-text email facts, test/latest-round parity, HTML escaping and link sanitization, and the original checks: official pool arithmetic; archive import without historical email backlog; once-per-draw successful delivery under concurrent checks; category filtering; delivery retries; last-good-data preservation; official email links; production HTTP authentication/origin checks and static serving.
 - Tests mock Brevo and IRCC responses. No real email was sent.
 - TasteSkill source lint: zero failures or warnings on the final application source.
 - Browser preview became unavailable under this session's browser access policy. Screenshot inspection at desktop/tablet/mobile sizes could not be completed; the TasteSkill browser inspector was not run as an alternative to that policy block.
@@ -25,3 +25,5 @@
 - NOC import verified against both official CSVs: 516 unit groups, with linked elements. Tests cover BOM, quoted commas/newlines, leading zeros, completeness rejection, concurrency, caching and persisted-data fallback. Browser visual checks remain unavailable.
 
 - Diagnosed live NOC failure: `/api/noc` returned HTTP 404, indicating the running API lacked the newly deployed route. Updater now terminates lingering node.exe processes only when their command line contains this project’s absolute server entry point, after stopping the scheduled task. Windows execution cannot be verified from this Linux environment.
+
+- High-wage import verified against IRCC’s official list (186 NOCs); 20012 maps to the 2× tier. Tests cover tier/points mappings, unknown NOCs, changed dates, malformed/duplicate tables, caching, coalescing and outage fallback. Rules verified on IRCC’s changes page, effective November 3, 2026.

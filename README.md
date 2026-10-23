@@ -116,3 +116,7 @@ Social feeds cache for 15 minutes in `DATA_DIR/ircc-social.json`, with independe
 ## Official NOC catalogue
 
 NOC codes imports Statistics Canada’s NOC 2021 Version 1.0 classification structure and elements CSV files on demand. All 516 five-digit unit groups are searchable by code, title, description and official example titles, with TEER/category filters and details for duties, requirements and exclusions. Leading zeros are preserved. No API credentials are needed. Successful imports are cached for 24 hours per running process in `DATA_DIR/noc-2021.json`; failures retain the previous catalogue and retry after five minutes. A different NOC edition is not silently substituted. ESDC official profiles remain linked for verification.
+
+## High-wage NOC points
+
+The NOC catalogue separately fetches IRCC’s published high-wage tables through `/api/high-wage`, caches the last successful list in `DATA_DIR/noc-high-wage.json` for 24 hours per process, and shows source freshness/failure. Missing data is shown as unverified, not ineligible. The announced November 3, 2026 rules map tiers 1.3/1.5/2 to Canadian high-wage experience bonuses 20/40/70 after qualifying experience and qualifying-offer factor scores 50/70/100. The experience and offer factor scores are alternatives, not additive. Effective-date changes or malformed tables fail validation for review; this is a NOC lookup, not a full eligibility or net-CRS calculator.

@@ -19,7 +19,43 @@ type Catalogue = {
   error?: string;
   version?: string;
 };
+type HighWage = {
+  entries: Record<
+    string,
+    { tier: string; experienceBonus: number; offerPoints: number }
+  > | null;
+  updatedAt?: string;
+  error?: string;
+};
+const wageSource =
+  "https://www.canada.ca/en/immigration-refugees-citizenship/services/immigrate-canada/express-entry/check-score/high-wage.html";
+const wageRules =
+  "https://www.canada.ca/en/immigration-refugees-citizenship/services/immigrate-canada/express-entry/changes.html";
 export default function Noc() {
+  const [wages, setWages] = useState<HighWage>({ entries: null }),
+    [wageFilter, setWageFilter] = useState("All"),
+    [wageBusy, setWageBusy] = useState(true);
+  async function loadWages() {
+    setWageBusy(true);
+    try {
+      const r = await fetch("/api/high-wage");
+      if (!r.ok) throw Error();
+      setWages(await r.json());
+    } catch {
+      setWages((w) => ({
+        ...w,
+        error: "High-wage status unavailable. Check the official IRCC list.",
+      }));
+    } finally {
+      setWageBusy(false);
+    }
+  }
+  function wageLabel(code: string) {
+    if (!wages.entries) return "Unverified";
+    const w = wages.entries[code];
+    return w ? `${w.tier}× tier` : "Not listed";
+  }
+
   const [data, setData] = useState<Catalogue>({ items: [] }),
     [busy, setBusy] = useState(true),
     [query, setQuery] = useState(""),
@@ -45,10 +81,16 @@ export default function Noc() {
   }
   useEffect(() => {
     void load();
+    void loadWages();
   }, []);
   const terms = query.toLowerCase().trim().split(/\s+/).filter(Boolean);
   const filtered = data.items.filter(
     (i) =>
+      (wageFilter === "All" ||
+        (!!wages.entries &&
+          (wageFilter === "Listed"
+            ? !!wages.entries[i.code]
+            : wages.entries[i.code]?.tier === wageFilter))) &&
       (teer === "All" || String(i.teer) === teer) &&
       (group === "All" || i.group === group) &&
       terms.every((t) =>
@@ -76,7 +118,57 @@ export default function Noc() {
           Browse all five-digit NOC 2021 occupation groups. Search codes,
           titles, descriptions and official example job titles.
         </p>
+        <section className="notice">
+          <strong>High-wage CRS changes · Effective November 3, 2026</strong>
+          <p>
+            Shown as announced rules. Experience column: extra points after at
+            least 12 months (1,560 hours) of qualifying Canadian experience in
+            that tier. Offer column: points for a qualifying offer, not an extra
+            bonus on top of Canadian experience.
+          </p>
+          <p>
+            IRCC compares total Canadian work-experience points (work-length +
+            high-wage bonus) with qualifying-offer points and uses the higher
+            score. They are not added together. The tier comes from the NOC’s
+            national median wage, not your salary.
+          </p>
+          <a href={wageRules} target="_blank" rel="noreferrer">
+            Read IRCC’s eligibility and scoring rules
+          </a>
+        </section>
+        {wageBusy && <p role="status">Checking the official high-wage list…</p>}
+        {wages.error && (
+          <p className="notice" role="status">
+            {wages.error}
+          </p>
+        )}
+        {wages.updatedAt && (
+          <p className="source-note">
+            High-wage list fetched {new Date(wages.updatedAt).toLocaleString()}{" "}
+            ·{" "}
+            <a href={wageSource} target="_blank" rel="noreferrer">
+              Official IRCC list
+            </a>
+          </p>
+        )}
         <div className="noc-controls">
+          <label>
+            High-wage status
+            <select
+              disabled={!wages.entries}
+              value={wageFilter}
+              onChange={(e) => {
+                setWageFilter(e.target.value);
+                setPage(1);
+              }}
+            >
+              <option value="All">All occupations</option>
+              <option value="Listed">All listed high-wage occupations</option>
+              <option value="2">2× tier</option>
+              <option value="1.5">1.5× tier</option>
+              <option value="1.3">1.3× tier</option>
+            </select>
+          </label>
           <label>
             Search
             <input
@@ -124,7 +216,10 @@ export default function Noc() {
           <button
             className="button"
             disabled={busy}
-            onClick={() => void load()}
+            onClick={() => {
+              void load();
+              void loadWages();
+            }}
           >
             <RefreshCw size={14} />
             {busy ? "Loading…" : "Refresh catalogue"}
@@ -155,6 +250,9 @@ export default function Noc() {
                 <th>Code</th>
                 <th>Occupation</th>
                 <th>TEER</th>
+                <th>High-wage list</th>
+                <th>12-month Canadian bonus</th>
+                <th>Qualifying offer points</th>
               </tr>
             </thead>
             <tbody>
@@ -175,6 +273,19 @@ export default function Noc() {
                     </button>
                   </td>
                   <td>{i.teer}</td>
+                  <td>{wageLabel(i.code)}</td>
+                  <td>
+                    {!wages.entries
+                      ? "—"
+                      : wages.entries[i.code]
+                        ? `+${wages.entries[i.code].experienceBonus}`
+                        : "0"}
+                  </td>
+                  <td>
+                    {!wages.entries
+                      ? "—"
+                      : wages.entries[i.code]?.offerPoints || "0"}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -219,6 +330,28 @@ export default function Noc() {
               TEER {item.teer} · {item.group}
             </p>
             <p>{item.description}</p>
+            <div className="notice">
+              <strong>High-wage status: {wageLabel(item.code)}</strong>
+              {wages.entries?.[item.code] ? (
+                <p>
+                  Under the rules effective November 3, 2026: +
+                  {wages.entries[item.code].experienceBonus} points after
+                  qualifying Canadian experience of at least 12 months in this
+                  tier, or {wages.entries[item.code].offerPoints}{" "}
+                  qualifying-offer points. The offer replaces the Canadian
+                  work-experience component if higher; it is not added to it.
+                </p>
+              ) : (
+                <p>
+                  {wages.entries
+                    ? "No high-wage bonus or high-wage offer points listed for this NOC. Ordinary qualifying Canadian work-length points may still apply."
+                    : "This status has not been verified. Do not interpret it as ineligible."}
+                </p>
+              )}
+              <a href={wageSource} target="_blank" rel="noreferrer">
+                Verify with IRCC
+              </a>
+            </div>
             {(
               [
                 ["Main duties", item.duties],
