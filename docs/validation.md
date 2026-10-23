@@ -23,3 +23,5 @@
 - Vite production bundles now separate application code (~58 kB minified), React (~190 kB) and other libraries (~388 kB). Build completes without the oversized-chunk warning; warning limits remain unchanged. Production HTTP/static-serving test passes. Browser interaction verification remains unavailable.
 
 - NOC import verified against both official CSVs: 516 unit groups, with linked elements. Tests cover BOM, quoted commas/newlines, leading zeros, completeness rejection, concurrency, caching and persisted-data fallback. Browser visual checks remain unavailable.
+
+- Diagnosed live NOC failure: `/api/noc` returned HTTP 404, indicating the running API lacked the newly deployed route. Updater now terminates lingering node.exe processes only when their command line contains this project’s absolute server entry point, after stopping the scheduled task. Windows execution cannot be verified from this Linux environment.
