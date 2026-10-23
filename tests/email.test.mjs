@@ -20,6 +20,7 @@ test("real HTML and plain-text draw alerts contain matching official facts and u
     unsubscribeToken: "a".repeat(64),
   });
   assert.ok(!mail.subject.startsWith("[TEST]"));
+  assert.ok(mail.subject.endsWith(`${draw.crs} CRS points`));
   assert.match(mail.htmlContent, /<h1/);
   assert.match(mail.htmlContent, new RegExp(String(draw.crs)));
   assert.ok(
