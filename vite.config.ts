@@ -17,5 +17,25 @@ export default defineConfig({
     allowedHosts: ["terminal.local"],
     proxy: { "/api": "http://127.0.0.1:31007" },
   },
-  build: { outDir: "dist" },
+  build: {
+    outDir: "dist",
+    rolldownOptions: {
+      output: {
+        codeSplitting: {
+          groups: [
+            {
+              name: "react-runtime",
+              test: /node_modules[\\/](?:react|react-dom|scheduler)(?:[\\/]|$)/,
+              priority: 20,
+            },
+            {
+              name: "vendor",
+              test: /node_modules/,
+              priority: 10,
+            },
+          ],
+        },
+      },
+    },
+  },
 });
