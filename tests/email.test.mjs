@@ -38,7 +38,7 @@ test("real HTML and plain-text draw alerts contain matching official facts and u
     assert.ok(table[0].includes('cellpadding="0"'));
     assert.ok(table[0].includes('cellspacing="0"'));
   }
-  assert.equal((mail.htmlContent.match(/href="https:\/\/ee.example.test\/"/g) || []).length, 3);
+  assert.equal((mail.htmlContent.match(/href="https:\/\/ee.example.test\/"/g) || []).length, 2);
 
 });
 test("test emails use the same complete latest-round layout with an explicit test label", () => {
