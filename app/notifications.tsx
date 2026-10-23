@@ -18,6 +18,7 @@ export default function Notifications({
     [busy, setBusy] = useState(false),
     [message, setMessage] = useState(""),
     [error, setError] = useState(false);
+  const previewEmail = latest ? drawEmail({draw: latest, publicUrl: window.location.origin, preview: true}) : null;
   async function subscribe(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
@@ -53,16 +54,11 @@ export default function Notifications({
             <p className="preview-label">
               Actual email layout · Latest published round
             </p>
+            <p className="email-preview-subject"><strong>Subject:</strong> {previewEmail?.subject}</p>
             <iframe
               title="Preview of draw notification email"
               sandbox="allow-popups allow-popups-to-escape-sandbox"
-              srcDoc={
-                drawEmail({
-                  draw: latest,
-                  publicUrl: window.location.origin,
-                  preview: true,
-                }).htmlContent
-              }
+              srcDoc={previewEmail?.htmlContent}
             />
           </div>
         )}
