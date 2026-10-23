@@ -52,7 +52,7 @@ test("test emails use the same complete latest-round layout with an explicit tes
   assert.match(testMail.htmlContent, /No new draw is being announced/);
   assert.match(testMail.textContent, /TEST PREVIEW/);
   assert.ok(testMail.textContent.includes(draw.name));
-  assert.ok(testMail.htmlContent.includes("Round details"));
+  assert.ok(testMail.htmlContent.includes("CRS cutoff"));
   assert.ok(testMail.htmlContent.includes("View official draw"));
 });
 test("draw-supplied text is escaped and unsafe URLs do not become email links", () => {
