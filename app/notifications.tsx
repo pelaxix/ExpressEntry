@@ -118,8 +118,9 @@ export default function Notifications({
             <ArrowRight size={15} />
           </button>
           <p className="note">
-            Only new draw alerts. Unsubscribe any time using the link in an
-            email.
+            By subscribing, you request new draw alerts at this address,
+            delivered through Brevo. Unsubscribe any time. Read our{" "}
+            <a href="/privacy">Privacy policy</a>, including email tracking and retention.
           </p>
           {message && (
             <p

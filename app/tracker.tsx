@@ -1,3 +1,4 @@
+import Privacy from "./privacy";
 import Calculator from "./calculator";
 import Noc from "./noc";
 import { Standing, PoolCompare, DrawCalendar } from "./insights";
@@ -104,6 +105,7 @@ const titles = {
   updates: "IRCC updates",
   alerts: "Notifications",
   admin: "Administration",
+  privacy: "Privacy policy",
   unsubscribe: "Unsubscribe",
 };
 const nav = [
@@ -636,7 +638,7 @@ export default function Dashboard() {
   const [view, setView] = useState<keyof typeof titles>(
       new URLSearchParams(window.location.search).has("unsubscribe")
         ? "unsubscribe"
-        : "overview",
+        : window.location.pathname.replace(/\/$/, "") === "/privacy" ? "privacy" : "overview",
     ),
     [data, setData] = useState<Data | null>(null),
     [error, setError] = useState(""),
@@ -745,6 +747,7 @@ export default function Dashboard() {
     priorCEC = draws.filter((d) => d.category === "CEC")[1];
   const invitations = scoped.reduce((s, d) => s + d.invitations, 0);
   function go(v: keyof typeof titles) {
+    if (window.location.pathname.replace(/\/$/, "") === "/privacy" && v !== "privacy") window.history.replaceState({}, "", "/");
     setView(v);
     setMenu(false);
     setMessage("");
@@ -885,6 +888,8 @@ export default function Dashboard() {
                                 ? "Announcements and publications, straight from IRCC."
                                 : view === "admin"
                                   ? "Manage subscribers and email delivery."
+                                  : view === "privacy"
+                                    ? "How this site handles your information."
                                   : view === "unsubscribe"
                                     ? "Control the emails you receive."
                                     : "Get new draw results by email. No account needed."}
@@ -948,7 +953,8 @@ export default function Dashboard() {
             </p>
           )}
           {view === "calculator" && <Calculator />}
-          {view === "calculator" ? null : !data ? (
+          {view === "privacy" && <Privacy />}
+          {view === "calculator" || view === "privacy" ? null : !data ? (
             <div className="loading" aria-live="polite">
               <div className="loading-line" />
               <h2>Loading official draw data</h2>
@@ -1322,6 +1328,7 @@ export default function Dashboard() {
             <a href={OFFICIAL} target="_blank" rel="noreferrer">
               Verify with IRCC <ArrowUpRight size={12} />
             </a>
+            <a href="/privacy">Privacy</a>
             <button className="text-button" onClick={() => go("admin")}>
               Admin
             </button>

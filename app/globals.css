@@ -1984,3 +1984,9 @@ main.crs-page { overflow:clip; }
 .crs-scenario-options button { display:block; width:100%; text-align:left; min-height:44px; padding:8px 12px; border-radius:4px; }
 .crs-scenario-options button:hover, .crs-scenario-options button:focus-visible { background:var(--raised); }
 @media(max-width:540px) { .crs-scenario-row { flex-wrap:wrap; } .crs-scenario-row h2 { width:100%; } .crs-scenario-editor { flex-wrap:wrap; } .crs-scenario-editor .crs-field { flex-basis:100%; } }
+.privacy-policy { max-width:900px; padding:28px; font-size:16px; line-height:1.65; }
+.privacy-date { color:var(--muted); font-size:14px; }
+.privacy-policy section { margin-top:28px; }
+.privacy-policy h2 { font-size:20px; margin-bottom:10px; }
+.privacy-policy a, .settings-panel .note a { text-decoration:underline; text-underline-offset:3px; }
+@media(max-width:540px) { .privacy-policy { padding:18px; } }
