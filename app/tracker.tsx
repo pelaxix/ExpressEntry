@@ -860,7 +860,7 @@ export default function Dashboard() {
             IRCC source <ExternalLink size={13} />
           </a>
         </header>
-        <main>
+        <main className={view === "calculator" ? "crs-page" : undefined}>
           <div className="page-heading">
             <div>
               <h1>{titles[view]}</h1>

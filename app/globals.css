@@ -1858,7 +1858,7 @@ dialog > a {
 }
 
 /* CRS calculator: profile form with a persistent, readable score breakdown. */
-.crs-layout { display:grid; grid-template-columns:minmax(0, 1fr) minmax(280px, 340px); gap:20px; align-items:start; }
+.crs-layout { display:grid; grid-template-columns:minmax(0, 1fr) minmax(400px, 1fr); gap:20px; align-items:start; }
 .crs-form { display:grid; gap:20px; min-width:0; }
 .crs-section, .crs-result { padding:24px; }
 .crs-section h2, .crs-result h2 { margin:0 0 14px; font-size:20px; }
@@ -1877,14 +1877,54 @@ dialog > a {
 .crs-source { display:block; margin:16px 0; font-size:14px; }
 .crs-job { display:grid; grid-template-columns:minmax(0,1fr) 100px auto; gap:10px; align-items:center; }
 .crs-job > span { grid-column:1/-1; }
-.crs-result { position:sticky; top:20px; }
-.crs-total { display:block; font-size:72px; letter-spacing:-.05em; line-height:1.1; color:var(--accent); font-variant-numeric:tabular-nums; }
+.crs-result { position:sticky; top:16px; max-height:calc(100vh - 32px); max-height:calc(100dvh - 32px); overflow-y:auto; overscroll-behavior:contain; padding:0; scrollbar-gutter:stable; }
+.crs-total { display:block; font-size:40px; letter-spacing:-.05em; line-height:1.1; color:var(--accent); font-variant-numeric:tabular-nums; }
 .crs-current, .crs-breakdown > div { display:flex; justify-content:space-between; gap:16px; padding:9px 0; }
 .crs-current { background:var(--raised); padding:14px; margin:20px 0; }
 .crs-breakdown { font-size:14px; }
 .crs-breakdown dd { margin:0; font-weight:600; font-variant-numeric:tabular-nums; }
 .crs-result details { margin:18px 0; font-size:14px; line-height:1.6; }
 .crs-result summary { cursor:pointer; font-weight:500; }
-@media(max-width:1100px) { .crs-layout { grid-template-columns:1fr; } .crs-result { position:static; grid-row:1; } }
-@media(max-width:540px) { .crs-fields { grid-template-columns:1fr; gap:0; } .crs-section,.crs-result { padding:18px; } .crs-job { grid-template-columns:minmax(0,1fr) 90px; } .crs-job .button { justify-self:start; } }
+@media(max-width:1150px) {
+  .crs-layout { grid-template-columns:1fr; }
+  .crs-result { position:static; grid-row:3; max-height:none; overflow:visible; }
+  .crs-form { grid-row:2; }
+  .crs-mobile-summary { display:grid; grid-template-columns:1fr 1fr; position:sticky; top:0; z-index:5; gap:20px; background:var(--surface); border-bottom:1px solid var(--border); padding:12px 0; }
+  .crs-mobile-summary span { display:block; font-size:14px; }
+  .crs-mobile-summary strong { font-size:28px; font-variant-numeric:tabular-nums; }
+  .crs-mobile-summary > div:last-child strong { color:var(--accent); }
+  .crs-result-summary { position:static; }
+}
+@media(max-width:540px) { .crs-fields { grid-template-columns:1fr; gap:0; } .crs-section { padding:18px; } .crs-job { grid-template-columns:minmax(0,1fr) 90px; } .crs-job .button { justify-self:start; } }
 .crs-conversion { margin:0 0 14px; color:var(--muted); font-size:13px; }
+
+/* overflow:clip preserves the rounded sheet without intercepting sticky positioning. */
+main.crs-page { overflow:clip; }
+.crs-mobile-summary { display:none; }
+.crs-result-summary { position:sticky; top:0; z-index:1; padding:20px; background:var(--surface); }
+.crs-result-body { padding:0 20px 20px; }
+.crs-score-columns { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:20px; }
+.crs-score-column { min-width:0; }
+.crs-score-column h3 { font-size:16px; margin:0; }
+.crs-score-column p { font-size:13px; margin:8px 0; }
+.crs-score-date { color:var(--muted); min-height:38px; }
+.crs-score-column .crs-total { color:var(--text); }
+.crs-score-new .crs-total { color:var(--accent); }
+.crs-comparison-table { width:100%; border-collapse:collapse; table-layout:fixed; font-size:14px; }
+.crs-comparison-table caption { text-align:left; font-weight:600; padding:14px 0; }
+.crs-comparison-table th, .crs-comparison-table td { padding:10px 4px; border-bottom:1px solid var(--rule); vertical-align:top; overflow-wrap:anywhere; }
+.crs-comparison-table th { text-align:left; font-weight:400; color:var(--text); }
+.crs-comparison-table th:first-child { width:52%; }
+.crs-comparison-table td, .crs-comparison-table thead th:not(:first-child) { text-align:right; font-variant-numeric:tabular-nums; }
+.crs-comparison-total th, .crs-comparison-total td { font-weight:600; }
+.crs-input-error { color:var(--negative); font-size:13px; }
+.crs-field input[aria-invalid="true"] { border-color:var(--negative); }
+@media(min-width:1151px) and (max-width:1400px) {
+  .crs-layout { grid-template-columns:minmax(0,1fr) minmax(380px,1fr); gap:16px; }
+  .crs-fields { grid-template-columns:1fr; gap:0; }
+}
+@media(max-width:1150px) {
+  .crs-mobile-summary { display:grid; }
+  .crs-result-summary { position:static; }
+}
+.crs-comparison-table th { text-transform:none; letter-spacing:normal; background:transparent; }
