@@ -68,25 +68,24 @@ export default function Calculator() {
       <label className="crs-field"><span>Job-offer NOC (optional)</span><input list="crs-nocs" inputMode="numeric" maxLength={5} value={offer} onChange={e=>{setStarted(true);setOffer(e.target.value.replace(/\D/g,''));setConfirmed(false);}}/></label>
       <label className="crs-check"><input type="checkbox" checked={confirmed} onChange={e=>setConfirmed(e.target.checked)}/>I have checked that this offer meets IRCC’s qualifying job-offer requirements effective November 3</label><p className="crs-note">Offer tier: {offer&&ready?(wages.entries?.[offer]?`${wages.entries[offer].tier}× (${wages.entries[offer].offerPoints} points if eligible)`:"not listed"):"not selected"}. An existing job alone does not confirm a qualifying offer. An officer assesses genuineness and eligibility. <a href={sources.changes} target="_blank" rel="noreferrer">Read the new offer rules ↗</a></p></section>
       <section className="panel crs-section"><h2>Additional factors</h2><label className="crs-check"><input type="checkbox" checked={p.nomination} onChange={e=>update('nomination',e.target.checked)}/>I have a valid Express Entry provincial / territorial nomination</label><label className="crs-check"><input type="checkbox" checked={p.sibling} onChange={e=>update('sibling',e.target.checked)}/>I or my accompanying spouse have an eligible sibling in Canada (18+, citizen or permanent resident)</label><p className="crs-note">French bonus points are calculated automatically from your language results. Additional points are capped at 600.</p></section>
+      <section className="panel crs-section"><h2>About this estimate</h2><p className="crs-note">Partial answers produce a partial score. This calculator estimates points, not immigration program eligibility. IRCC’s profile score governs. Rules reviewed October 23, 2026.</p><a className="crs-source" href={sources.criteria} target="_blank" rel="noreferrer">Official CRS points tables ↗</a><a className="crs-source" href={sources.changes} target="_blank" rel="noreferrer">November 3 changes ↗</a><button className="button" onClick={()=>{setAgeText(String(blankProfile.age));setResetKey(k=>k+1);setP({...blankProfile});setJobs([{code:'',months:'0'}]);setOffer('');setConfirmed(false);setStarted(false);}}>Reset calculator</button>
+</section>
     </div>
-    <aside className="panel crs-result" aria-label="CRS comparison"><div className="crs-result-summary"><h2>Your CRS comparison</h2>
-      <div className="crs-score-columns" aria-live="polite">
-        <section className="crs-score-column"><h3>Current rules</h3><p className="crs-score-date">Before November 3, 2026</p><strong className="crs-total">{started&&numericValid?score.current:'—'}</strong><p>Estimated CRS points</p></section>
-        <section className="crs-score-column crs-score-new"><h3>November 3 rules</h3><p className="crs-score-date">From November 3, 2026</p><strong className="crs-total">{started&&futureValid?score.future:'—'}</strong><p>{started&&futureValid?score.delta===0?'Same score':`+${score.delta} points`:'Estimated CRS points'}</p></section>
-      </div>
-      </div><div className="crs-result-body">
-      {!started?<p>Enter your profile once to calculate both scores.</p>:<>
-        {!numericValid&&<p role="status">Complete the age and experience-month fields to see both totals.</p>}
-        {!futureValid&&numericValid&&<p role="status">November 3 total unavailable. Check the high-wage list and your NOC / experience answers.</p>}
-        <table className="crs-comparison-table"><caption>Points breakdown</caption><thead><tr><th scope="col">Factor</th><th scope="col">Current</th><th scope="col">Nov 3</th></tr></thead><tbody>
-          {rows.map(([label,points])=><tr key={label}><th scope="row">{label}</th><td>{numericValid?points:'—'}</td><td>{numericValid?points:'—'}</td></tr>)}
-          <tr><th scope="row">Canadian experience</th><td>{numericValid?score.work:'—'}</td><td>Included below</td></tr>
-          <tr><th scope="row">Labour Market Integration</th><td>Not applicable</td><td>{futureValid?score.integration:'—'}</td></tr>
-          <tr className="crs-comparison-total"><th scope="row">Total CRS</th><td>{numericValid?score.current:'—'}</td><td>{futureValid?score.future:'—'}</td></tr>
-        </tbody></table>
-        <details open><summary>How the November 3 factor works</summary><p>Canadian experience: {numericValid?score.work:'—'} length + {futureValid?score.bonus:'—'} high-wage = {futureValid?score.experience:'—'}<br/>Qualifying offer: {futureValid?score.offer:'—'}<br/>Awarded: the higher total, once.</p>{futureValid&&<p>Selected route: {score.route}.</p>}<p>Canadian experience still counts for skill transferability even when the offer route wins.</p></details><details><summary>Transferability breakdown</summary><p>Education combinations: {score.transferEd}<br/>Foreign experience combinations: {score.transferForeign}<br/>Trade certificate: {score.trade}<br/>Combined maximum: 100</p></details>
-      </>}
-      <p className="crs-note">Partial answers produce a partial score. Estimate only; this does not assess eligibility for an immigration program or predict an invitation. IRCC’s profile score governs. Rules reviewed October 23, 2026.</p><a className="crs-source" href={sources.criteria} target="_blank" rel="noreferrer">Official CRS points tables ↗</a><a className="crs-source" href={sources.changes} target="_blank" rel="noreferrer">November 3 changes ↗</a><button className="button" onClick={()=>{setAgeText(String(blankProfile.age));setResetKey(k=>k+1);setP({...blankProfile});setJobs([{code:'',months:'0'}]);setOffer('');setConfirmed(false);setStarted(false);}}>Reset calculator</button>
-    </div></aside>
+    {[false,true].map(future=>{
+      const valid=started&&numericValid&&(!future||futureValid);
+      const resultRows:[string,number|string][]=[...rows,[future?'Labour Market Integration':'Canadian experience',future?(futureValid?score.integration:'—'):score.work]];
+      return <aside key={String(future)} className={`panel crs-result ${future?'crs-result-new':''}`} aria-label={future?'November 3 calculator results':'Current calculator results'} tabIndex={0}>
+        <div className="crs-result-summary"><h2>{future?'November 3 rules':'Current rules'}</h2><p className="crs-score-date">{future?'From November 3, 2026':'Before November 3, 2026'}</p><strong className="crs-total" aria-live="polite">{valid?(future?score.future:score.current):'—'}</strong><p className="crs-score-caption">{future&&valid?(score.delta===0?'Same score as current rules':`+${score.delta} points vs current rules`):'Estimated CRS points'}</p></div>
+        <div className="crs-result-body">
+          {!started&&<p>Enter your profile to calculate this score.</p>}
+          {started&&!numericValid&&<p role="status">Complete your age and experience months.</p>}
+          {started&&numericValid&&future&&!futureValid&&<p role="status">Check the high-wage list and your NOC / experience answers.</p>}
+          <dl className="crs-breakdown">{resultRows.map(([label,points])=><div key={label}><dt>{label}</dt><dd>{valid?points:'—'}</dd></div>)}<div className="crs-result-total"><dt>Total CRS</dt><dd>{valid?(future?score.future:score.current):'—'}</dd></div></dl>
+          {future&&<details><summary>How the new factor works</summary><p>Experience: {valid?score.work:'—'} length + {valid?score.bonus:'—'} high-wage = {valid?score.experience:'—'}<br/>Qualifying offer: {valid?score.offer:'—'}<br/>The higher total is awarded once.</p>{valid&&<p>Selected route: {score.route}.</p>}<p>Canadian experience still counts for transferability when the offer route wins.</p></details>}
+          <details><summary>Transferability details</summary><p>Education combinations: {valid?score.transferEd:'—'}<br/>Foreign experience combinations: {valid?score.transferForeign:'—'}<br/>Trade certificate: {valid?score.trade:'—'}<br/>Combined maximum: 100</p></details>
+        </div>
+      </aside>;
+    })}
+
   </div>;
 }

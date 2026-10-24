@@ -1928,3 +1928,39 @@ main.crs-page { overflow:clip; }
   .crs-result-summary { position:static; }
 }
 .crs-comparison-table th { text-transform:none; letter-spacing:normal; background:transparent; }
+
+/* Each ruleset has its own result card. Only the form scrolls on desktop. */
+@media(min-width:1151px) {
+  .app-shell:has(main.crs-page) { height:100dvh; min-height:0; overflow:hidden; }
+  .main-shell:has(main.crs-page) { height:100dvh; display:flex; flex-direction:column; min-height:0; }
+  .main-shell:has(main.crs-page) > .topbar { flex:0 0 56px; }
+  main.crs-page { flex:1; min-height:0; display:flex; flex-direction:column; padding-top:20px; }
+  main.crs-page > .page-heading, main.crs-page > .freshness, main.crs-page > footer { flex-shrink:0; }
+  main.crs-page > footer { margin-top:12px; padding-top:12px; padding-bottom:12px; }
+  .crs-layout { flex:1; min-height:0; grid-template-columns:minmax(280px,1.3fr) repeat(2,minmax(220px,1fr)); gap:16px; overflow:hidden; align-items:stretch; }
+  .crs-form { overflow-y:auto; min-height:0; padding-right:8px; overscroll-behavior:contain; scrollbar-gutter:stable; }
+  .crs-result { position:relative; top:auto; max-height:none; min-height:0; overflow-y:auto; }
+  .crs-fields { grid-template-columns:1fr; gap:0; }
+  .crs-section { padding:18px; }
+  .crs-job { grid-template-columns:minmax(0,1fr) 90px; }
+  .crs-job .button { justify-self:start; }
+}
+.crs-result h2 { font-size:18px; }
+.crs-result .crs-total { color:var(--text); }
+.crs-result-new .crs-total { color:var(--accent); }
+.crs-result-summary { padding:18px; }
+.crs-result-body { padding:0 18px 18px; }
+.crs-score-caption { font-size:13px; min-height:38px; margin-bottom:0; }
+.crs-result-total { border-top:1px solid var(--border); font-weight:600; margin-top:8px; }
+.crs-score-date { min-height:0; font-size:13px; }
+.crs-breakdown dt { min-width:0; }
+.crs-breakdown dd { flex-shrink:0; }
+@media(max-width:1150px) {
+  .crs-layout { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .crs-mobile-summary, .crs-form { grid-column:1/-1; }
+  .crs-result { grid-row:3; grid-column:auto; }
+}
+@media(max-width:540px) {
+  .crs-layout { grid-template-columns:1fr; }
+  .crs-result { grid-row:auto; }
+}
