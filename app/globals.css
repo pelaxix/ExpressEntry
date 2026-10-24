@@ -1887,3 +1887,4 @@ dialog > a {
 .crs-result summary { cursor:pointer; font-weight:500; }
 @media(max-width:1100px) { .crs-layout { grid-template-columns:1fr; } .crs-result { position:static; grid-row:1; } }
 @media(max-width:540px) { .crs-fields { grid-template-columns:1fr; gap:0; } .crs-section,.crs-result { padding:18px; } .crs-job { grid-template-columns:minmax(0,1fr) 90px; } .crs-job .button { justify-self:start; } }
+.crs-conversion { margin:0 0 14px; color:var(--muted); font-size:13px; }
