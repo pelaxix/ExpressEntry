@@ -1937,7 +1937,7 @@ main.crs-page { overflow:clip; }
   main.crs-page { flex:1; min-height:0; display:flex; flex-direction:column; padding-top:20px; }
   main.crs-page > .page-heading, main.crs-page > .freshness, main.crs-page > footer { flex-shrink:0; }
   main.crs-page > footer { margin-top:12px; padding-top:12px; padding-bottom:12px; }
-  .crs-layout { flex:1; min-height:0; grid-template-columns:minmax(280px,1.3fr) repeat(2,minmax(220px,1fr)); gap:16px; overflow:hidden; align-items:stretch; }
+  .crs-layout { flex:1; min-height:0; grid-template-columns:minmax(280px,3fr) repeat(2,minmax(200px,1fr)); gap:16px; overflow:hidden; align-items:stretch; }
   .crs-form { overflow-y:auto; min-height:0; padding-right:8px; overscroll-behavior:contain; scrollbar-gutter:stable; }
   .crs-result { position:relative; top:auto; max-height:none; min-height:0; overflow-y:auto; }
   .crs-fields { grid-template-columns:1fr; gap:0; }
@@ -1964,3 +1964,7 @@ main.crs-page { overflow:clip; }
   .crs-layout { grid-template-columns:1fr; }
   .crs-result { grid-row:auto; }
 }
+.crs-scenario-actions { display:flex; flex-wrap:wrap; gap:8px; margin:10px 0; }
+.crs-scenario-actions .button { min-height:44px; }
+
+@media(min-width:1401px) { .crs-layout .crs-fields { grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; } }
