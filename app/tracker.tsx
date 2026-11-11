@@ -657,7 +657,7 @@ export default function Dashboard() {
     [query, setQuery] = useState(""),
     [page, setPage] = useState(1),
     [selected, setSelected] = useState<Draw | null>(null),
-    [poolId, setPoolId] = useState(""),
+    [poolDate, setPoolDate] = useState(""),
     [scoreText, setScoreText] = useState(""),
     [message, setMessage] = useState("");
   const unsubscribeToken = new URLSearchParams(window.location.search).get(
@@ -740,8 +740,8 @@ export default function Dashboard() {
     () => data?.poolSnapshots || poolSnapshots(draws),
     [data],
   );
-  const pool = snapshots.find((d) => String(d.id) === poolId) || snapshots[0];
-  const poolIndex = pool ? snapshots.findIndex((d) => d.id === pool.id) : -1;
+  const pool = snapshots.find((d) => d.poolDate === poolDate) || snapshots[0];
+  const poolIndex = pool ? snapshots.findIndex((d) => d.poolDate === pool.poolDate) : -1;
   const prevPool = snapshots[poolIndex + 1];
   const cec = draws.find((d) => d.category === "CEC"),
     priorCEC = draws.filter((d) => d.category === "CEC")[1];
@@ -1196,20 +1196,6 @@ export default function Dashboard() {
               )}
               {view === "pool" && pool && (
                 <>
-                  <div className="filterbar">
-                    <Select
-                      label="Pool snapshot date"
-                      value={String(pool.id)}
-                      onChange={setPoolId}
-                    >
-                      {snapshots.map((d) => (
-                        <option value={d.id} key={d.id}>
-                          {d.poolDate}
-                        </option>
-                      ))}
-                    </Select>
-                    <span>{snapshots.length} distinct published snapshots</span>
-                  </div>
                   <section className="summary-strip pool-summary">
                     <Metric
                       label="Candidates in the pool"
@@ -1261,14 +1247,49 @@ export default function Dashboard() {
                     </Panel>
                     <Panel
                       title="Full distribution table"
-                      sub={
-                        prevPool
-                          ? "Change since " + prevPool.poolDate
-                          : "No earlier snapshot for comparison"
-                      }
+                      sub={`As of ${pool.poolDate}${prevPool ? ` · Change since ${prevPool.poolDate}` : ""}`}
                     >
+                      <div className="filterbar">
+                        <Select
+                          label="Distribution history date"
+                          value={pool.poolDate}
+                          onChange={setPoolDate}
+                        >
+                          {snapshots.map((d) => (
+                            <option value={d.poolDate} key={d.poolDate}>
+                              {d.poolDate}
+                            </option>
+                          ))}
+                        </Select>
+                        <span>{snapshots.length} published snapshots</span>
+                      </div>
+                      <div className="pagination">
+                        <span>Snapshot {poolIndex + 1} of {snapshots.length}</span>
+                        <div>
+                          <button
+                            type="button"
+                            className="button"
+                            disabled={!prevPool}
+                            onClick={() => prevPool && setPoolDate(prevPool.poolDate)}
+                          >
+                            <ChevronLeft size={14} />
+                            Older
+                          </button>
+                          <button
+                            type="button"
+                            className="button"
+                            disabled={poolIndex <= 0}
+                            onClick={() => {
+                              if (poolIndex > 0) setPoolDate(snapshots[poolIndex - 1].poolDate);
+                            }}
+                          >
+                            Newer
+                            <ChevronRight size={14} />
+                          </button>
+                        </div>
+                      </div>
                       <PoolTable
-                        key={pool.id}
+                        key={pool.poolDate}
                         draw={pool}
                         previous={prevPool}
                         full
